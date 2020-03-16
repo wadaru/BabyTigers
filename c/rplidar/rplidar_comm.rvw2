@@ -33,8 +33,8 @@
       <md:dynamicInputs/>
       <md:dynamicOutputs/>
       <md:configVarExprs>
-        <md:varExpr md:value="127.0.1.1" md:varname="ipAddress"/>
-        <md:varExpr md:value="127.0.1.1;;127.0.0.1;;172.26.1.1;;127.0.0.1:8080" md:varname="ipAddressHistory"/>
+        <md:varExpr md:value="192.168.11.59" md:varname="ipAddress"/>
+        <md:varExpr md:value="192.168.11.59;;127.0.1.1;;127.0.0.1;;172.26.1.1;;127.0.0.1:8080" md:varname="ipAddressHistory"/>
         <md:varExpr md:value="8080" md:varname="imageServerPort"/>
         <md:varExpr md:value="(320 240)" md:varname="camera0_resolution"/>
         <md:varExpr md:value="(320 240)" md:varname="camera1_resolution"/>
@@ -115,9 +115,9 @@
       <md:dynamicInputs/>
       <md:dynamicOutputs/>
       <md:configVarExprs>
-        <md:varExpr md:value="127.0.1.1:9182" md:varname="listeners"/>
+        <md:varExpr md:value="192.168.11.59:9182;;192.168.11.48:9182" md:varname="listeners"/>
         <md:varExpr md:value="9180" md:varname="local_port"/>
-        <md:varExpr md:value="100" md:varname="sendingInterval"/>
+        <md:varExpr md:value="1000" md:varname="sendingInterval"/>
         <md:varExpr md:value="true" md:varname="message0SendingEnabled"/>
         <md:varExpr md:value="false" md:varname="message1SendingEnabled"/>
       </md:configVarExprs>
@@ -128,9 +128,9 @@
   <md:utspecs>
     <md:utspec md:id="rec_gmbh_data_exchange_udp_int_reader"/>
     <md:utspec md:id="rec_gmbh_data_exchange_udp_int_writer"/>
+    <md:utspec md:id="rec_gmbh_robotino_timer"/>
     <md:utspec md:id="rec_gmbh_global_variable_writer_float"/>
     <md:utspec md:id="rec_gmbh_basic_greater"/>
-    <md:utspec md:id="rec_gmbh_robotino_timer"/>
     <md:utspec md:id="rec_gmbh_constant_int32">
       <md:spec md:curr="int32" md:type="T"/>
     </md:utspec>
@@ -224,7 +224,7 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__1_" md:name="Constant (1)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="1" md:varname="value">
+            <md:varExpr md:value="9" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -409,7 +409,7 @@
   <md:layout>
     <md:sdfs>
       <md:sdf md:active="true" md:sdfmodel="sdfmodel_udp" md:showData="true" md:showToolTips="false" md:tab="1">
-        <md:sdfViewLayout md:data="000000ff00000000fd00000000000003bb0000022d00000004000000040000000800000008fc00000000"/>
+        <md:sdfViewLayout md:data="000000ff00000000fd000000000000055a000002fe00000004000000040000000800000008fc00000000"/>
         <md:units>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int0" md:width="-1" md:x="474" md:y="-114"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_input_0_int0" md:width="-1" md:x="180" md:y="-138"/>
@@ -433,7 +433,7 @@
         </md:texts>
       </md:sdf>
       <md:sdf md:sdfmodel="sdfmodel_udp_finish" md:showData="false" md:showToolTips="false" md:tab="2">
-        <md:sdfViewLayout md:data="000000ff00000000fd00000000000003bb0000022d00000004000000040000000800000008fc00000000"/>
+        <md:sdfViewLayout md:data="000000ff00000000fd000000000000055a000002fe00000004000000040000000800000008fc00000000"/>
         <md:units>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__1_2" md:width="-1" md:x="426" md:y="-96"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int03" md:width="-1" md:x="546" md:y="-42"/>
