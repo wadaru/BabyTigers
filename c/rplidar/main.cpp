@@ -96,6 +96,43 @@ u_result capture_and_display(RPlidarDriver * drv)
     return ans;
 }
 
+int capture_and_display1(RPlidarDriver * drv) {
+    u_result ans;
+
+    rplidar_response_measurement_node_t nodes[8192];
+    size_t   count = _countof(nodes);
+
+    printf("waiting for data...\n");
+
+    // fetech extactly one 0-360 degrees' scan
+    ans = drv->grabScanData(nodes, count);
+    if (IS_OK(ans) || ans == RESULT_OPERATION_TIMEOUT) {
+        drv->ascendScanData(nodes, count);
+        // plot_histogram(nodes, count);
+
+        /*
+        printf("Do you want to see all the data? (y/n) ");
+        int key = getchar();
+        int key = 'n';
+        if (key == 'Y' || key == 'y') {
+            for (int pos = 0; pos < (int)count ; ++pos) {
+                printf("%s theta: %03.2f Dist: %08.2f \n",
+                    (nodes[pos].sync_quality & RPLIDAR_RESP_MEASUREMENT_SYNCBIT) ?"S ":"  ",
+                    (nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f,
+                    nodes[pos].distance_q2/4.0f);
+            }
+        */
+	return nodes[(int)count / 2].distance_q2/4.0f;
+        // }
+    } else {
+        printf("error code: %x\n", ans);
+    }
+
+    // return ans;
+    return -1;
+
+}
+
 int main(int argc, const char * argv[]) {
     const char * opt_com_path = NULL;
     _u32         opt_com_baudrate = 115200;
@@ -117,9 +154,9 @@ printf("argc = %d\n", argc);
 	int yes = 1;
 	struct sockaddr_in addrSend, addrRecv;
 
-	for(i = 1; i < 9; i++) view3Send[i] = i + 10;
+	for(i = 1; i < 9; i++) view3Send[i] = i + 3;
 	unsigned char buf[256];
-	int checkSum;
+	unsigned char checkSum;
 
 	if (argc < 4) {
 		portSend = 9180; portRecv = 9182;
@@ -227,7 +264,28 @@ printf("argc = %d\n", argc);
         }
         drv->startMotor();
 
-        // take only one 360 deg scan and display the result as a histogram
+	break;
+    } while(1);
+    do {
+
+        //
+        // program for view3.
+        //
+        if (recv(sockRecv, buf, sizeof(buf), MSG_WAITALL) > 0) {
+            if (buf[0] == 0) { // we can receive only Message 0.
+                for (i = 1; i < 9; i++) {
+                    view3Recv[i] = (buf[i * 4 + 3] << 24) + (buf[i * 4 + 2] << 16) + (buf[i * 4 + 1] << 8) + (buf[i * 4]);
+                    printf("INT%d = %x, ", i, view3Recv[i]);
+                }
+                printf("\n");
+                view3Send[1] = view3Recv[1] + 1;        // seq number
+            }
+       
+
+	//
+	// get the distance data from LRF.
+	// 
+	// take only one 360 deg scan and display the result as a histogram
         ////////////////////////////////////////////////////////////////////////////////
         if (IS_FAIL(drv->startScan( 0,1 ))) // you can force rplidar to perform scan operation regardless whether the motor is rotating
         {
@@ -235,47 +293,36 @@ printf("argc = %d\n", argc);
             break;
         }
 
-        if (IS_FAIL(capture_and_display(drv))) {
+        int result;
+        if (IS_FAIL(result = capture_and_display1(drv))) {
             fprintf(stderr, "Error, cannot grab scan data.\n");
             break;
 
         }
 
-		//
-		// program for view3.
-		//
-		if (recv(sockRecv, buf, sizeof(buf), MSG_DONTWAIT) > 0) {
-			if (buf[0] == 0) { // we can receive only Message 0.
-				for (i = 1; i < 9; i++) {
-					view3Recv[i] = (buf[i * 4 + 3] << 24) + (buf[i * 4 + 2] << 16) + (buf[i * 4 + 1] << 8) + (buf[i * 4]);
-					printf("INT%d = %x, ", i, view3Recv[i]);
-				}
-				printf("\n");
-				view3Send[1] = view3Recv[1] + 1;        // seq number
-			}
-		}
+	view3Send[2] = result * 0 + 20;
+        printf("dist = %d\n", result);
+        buf[0] = 0;
+        buf[1] = 36;
+        buf[2] = 0;
+        buf[3] = 0; // checkSum;
+        for (i = 1; i < 9; i++) {
+            buf[i * 4    ] =  view3Send[i]        & 0xff;
+            buf[i * 4 + 1] = (view3Send[i] >>  8) & 0xff;
+            buf[i * 4 + 2] = (view3Send[i] >> 16) & 0xff;
+            buf[i * 4 + 3] = (view3Send[i] >> 24) & 0xff;
+        }
+        checkSum = 0;
+        for (i = 0; i < 36; i++) checkSum += buf[i];
+        buf[3] = 0xff - checkSum;
+        printf("checkSum = %d\n", checkSum);
+        sendto(sockSend, buf, 36, 0, (struct sockaddr *)&addrSend, sizeof(addrSend));
 
-		buf[0] = 0;
-		buf[1] = 36;
-		buf[2] = 0;
-		buf[3] = 0; // checkSum;
-		for (i = 1; i < 9; i++) {
-			buf[i * 4    ] =  view3Send[i]        & 0xff;
-			buf[i * 4 + 1] = (view3Send[i] >>  8) & 0xff;
-			buf[i * 4 + 2] = (view3Send[i] >> 16) & 0xff;
-			buf[i * 4 + 3] = (view3Send[i] >> 24) & 0xff;
-		}
-		checkSum = 0;
-		for (i = 0; i < 36; i++) checkSum += buf[i];
-		buf[3] = 0xff - checkSum;
-		printf("checkSum = %d\n", checkSum);
-		sendto(sockSend, buf, 36, 0, (struct sockaddr *)&addrSend, sizeof(addrSend));
-
-		printf("sendto finished\n");
-		// }
-		// usleep(100000);
-
-		} while(1);
+        printf("sendto finished\n");
+        // }
+        // usleep(150000);
+    }
+    } while(1);
 
     drv->stop();
     drv->stopMotor();
