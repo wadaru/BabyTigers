@@ -35,6 +35,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
 
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
@@ -142,47 +143,49 @@ int main(int argc, const char * argv[]) {
         print_usage(argc, argv);
         return -1;
     }
-printf("argc = %d\n", argc);
+
+    // printf("argc = %d\n", argc);
     opt_com_path = argv[1];
     if (argc > 2) opt_com_baudrate = strtoul(argv[2], NULL, 10);
     // opt_com_baudrate = strtoul(argv[2], NULL, 10);
 
-	int sockSend, sockRecv;
-	int portSend, portRecv;
-	char IPSend[16], IPRecv[16];
-	int i;
-	int yes = 1;
-	struct sockaddr_in addrSend, addrRecv;
+    int sockSend, sockRecv;
+    int portSend, portRecv;
+    char IPSend[32], IPRecv[32];
+    int i;
+    int yes = 1;
+    struct sockaddr_in addrSend, addrRecv;
 
-	for(i = 1; i < 9; i++) view3Send[i] = i + 3;
-	unsigned char buf[256];
-	unsigned char checkSum;
+    for(i = 1; i < 9; i++) view3Send[i] = i + 3;
+    unsigned char buf[256];
+    unsigned char checkSum;
 
-	if (argc < 4) {
-		portSend = 9180; portRecv = 9182;
-		strcpy(IPSend, "127.0.1.1");
-		strcpy(IPRecv, "127.0.1.1");
-	} else {
-		strcpy(IPSend, argv[3]);
-		portSend = atoi(argv[4]);
-		strcpy(IPRecv, argv[5]);
-		portRecv = atoi(argv[6]);
-	}
-	printf("UDP connection: send %s:%d, recv %s:%d\n", IPSend, portSend, IPRecv, portRecv);
+    if (argc < 4) {
+        portSend = 9180; portRecv = 9182;
+        strcpy(IPSend, "127.0.1.1");
+        strcpy(IPRecv, "127.0.1.1");
+    } else {
+        strcpy(IPSend, argv[3]);
+        portSend = atoi(argv[4]);
+        strcpy(IPRecv, argv[5]);
+        portRecv = atoi(argv[6]);
+    }
+    printf("UDP connection: send %s:%d, recv %s:%d\n", IPSend, portSend, IPRecv, portRecv);
 
-	addrSend.sin_family = AF_INET;
-	addrSend.sin_port = htons(portSend);
-	addrSend.sin_addr.s_addr = inet_addr(IPSend);
-	// addr.sin_addr.s_addr = inet_addr("255.255.255.255");
-	setsockopt(sockSend, SOL_SOCKET, SO_BROADCAST, (char *)&yes, sizeof(yes));
+    sockSend = socket(AF_INET, SOCK_DGRAM, 0);
+    addrSend.sin_family = AF_INET;
+    addrSend.sin_port = htons(portSend);
+    addrSend.sin_addr.s_addr = inet_addr(IPSend);
+    // addrSend.sin_addr.s_addr = inet_addr("255.255.255.255");
+    printf("setsockopt: %d\n", setsockopt(sockSend, SOL_SOCKET, SO_BROADCAST, (char *)&yes, sizeof(yes)));
 
-	sockRecv = socket(AF_INET, SOCK_DGRAM, 0);
-	addrRecv.sin_family = AF_INET;
-	addrRecv.sin_port = htons(portRecv);
-	addrRecv.sin_addr.s_addr = inet_addr(IPRecv); // INADDR_ANY;
-	bind(sockRecv, (struct sockaddr *)&addrRecv, sizeof(addrRecv));
+    sockRecv = socket(AF_INET, SOCK_DGRAM, 0);
+    addrRecv.sin_family = AF_INET;
+    addrRecv.sin_port = htons(portRecv);
+    addrRecv.sin_addr.s_addr = inet_addr(IPRecv); // INADDR_ANY;
+    bind(sockRecv, (struct sockaddr *)&addrRecv, sizeof(addrRecv));
 
-	memset(buf, 0, sizeof(buf));
+    memset(buf, 0, sizeof(buf));
 
     // create the driver instance
     RPlidarDriver * drv = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
@@ -264,6 +267,14 @@ printf("argc = %d\n", argc);
         }
         drv->startMotor();
 
+	// take only one 360 deg scan and display the result as a histogram
+        ////////////////////////////////////////////////////////////////////////////////
+        //
+        if (IS_FAIL(drv->startScan( 0,1 ))) // you can force rplidar to perform scan operation regardless whether the motor is rotating
+        {
+            fprintf(stderr, "Error, cannot start the scan operation.\n");
+            return -1;
+        }
 	break;
     } while(1);
     do {
@@ -282,46 +293,63 @@ printf("argc = %d\n", argc);
             }
        
 
-	//
-	// get the distance data from LRF.
-	// 
-	// take only one 360 deg scan and display the result as a histogram
-        ////////////////////////////////////////////////////////////////////////////////
-        if (IS_FAIL(drv->startScan( 0,1 ))) // you can force rplidar to perform scan operation regardless whether the motor is rotating
-        {
-            fprintf(stderr, "Error, cannot start the scan operation.\n");
-            break;
-        }
+            //
+            // get the distance data from LRF.
+            //
 
-        int result;
-        if (IS_FAIL(result = capture_and_display1(drv))) {
-            fprintf(stderr, "Error, cannot grab scan data.\n");
-            break;
+            // take only one 360 deg scan and display the result as a histogram
+            ////////////////////////////////////////////////////////////////////////////////
+            //
+	    /*
+            if (IS_FAIL(drv->startScan( 0,1 ))) // you can force rplidar to perform scan operation regardless whether the motor is rotating
+                {
+                fprintf(stderr, "Error, cannot start the scan operation.\n");
+                return -1;
+            }
+	    */
 
-        }
+            int result;
+            switch (view3Recv[2]) {
+                case 1:
+                    if (IS_FAIL(result = capture_and_display1(drv))) {
+                        fprintf(stderr, "Error, cannot grab scan data.\n");
+                        break;
+                    }
+                    break;
+                case 2:
+		case 255:
+                    drv->stop();
+                    drv->stopMotor();
 
-	view3Send[2] = result * 0 + 20;
-        printf("dist = %d\n", result);
-        buf[0] = 0;
-        buf[1] = 36;
-        buf[2] = 0;
-        buf[3] = 0; // checkSum;
-        for (i = 1; i < 9; i++) {
-            buf[i * 4    ] =  view3Send[i]        & 0xff;
-            buf[i * 4 + 1] = (view3Send[i] >>  8) & 0xff;
-            buf[i * 4 + 2] = (view3Send[i] >> 16) & 0xff;
-            buf[i * 4 + 3] = (view3Send[i] >> 24) & 0xff;
-        }
-        checkSum = 0;
-        for (i = 0; i < 36; i++) checkSum += buf[i];
-        buf[3] = 0xff - checkSum;
-        printf("checkSum = %d\n", checkSum);
-        sendto(sockSend, buf, 36, 0, (struct sockaddr *)&addrSend, sizeof(addrSend));
+                    RPlidarDriver::DisposeDriver(drv);
+                    return 0;
 
-        printf("sendto finished\n");
+                default:
+                    break;
+	    }
+
+            if (result != 0) view3Send[2] = result * 1;
+            printf("dist = %d\n", result);
+            buf[0] = 0;
+            buf[1] = 36;
+            buf[2] = 0;
+            buf[3] = 0; // checkSum;
+            for (i = 1; i < 9; i++) {
+                buf[i * 4    ] =  view3Send[i]        & 0xff;
+                buf[i * 4 + 1] = (view3Send[i] >>  8) & 0xff;
+                buf[i * 4 + 2] = (view3Send[i] >> 16) & 0xff;
+                buf[i * 4 + 3] = (view3Send[i] >> 24) & 0xff;
+            }
+            checkSum = 0;
+            for (i = 0; i < 36; i++) checkSum += buf[i];
+            buf[3] = 0xff - checkSum;
+            printf("checkSum = %d\n", checkSum);
+            printf("sendto: %d\n", sendto(sockSend, buf, 36, 0, (struct sockaddr *)&addrSend, sizeof(addrSend)));
+
+            printf("sendto finished\n");
         // }
         // usleep(150000);
-    }
+        }
     } while(1);
 
     drv->stop();
