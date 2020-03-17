@@ -308,7 +308,7 @@ int main(int argc, const char * argv[]) {
             }
 	    */
 
-            int result;
+            int result = 0;
             switch (view3Recv[2]) {
                 case 1:
                     if (IS_FAIL(result = capture_and_display1(drv))) {
@@ -343,10 +343,10 @@ int main(int argc, const char * argv[]) {
             checkSum = 0;
             for (i = 0; i < 36; i++) checkSum += buf[i];
             buf[3] = 0xff - checkSum;
-            printf("checkSum = %d\n", checkSum);
-            printf("sendto: %d\n", sendto(sockSend, buf, 36, 0, (struct sockaddr *)&addrSend, sizeof(addrSend)));
+            // printf("checkSum = %d\n", checkSum);
+            sendto(sockSend, buf, 36, 0, (struct sockaddr *)&addrSend, sizeof(addrSend));
 
-            printf("sendto finished\n");
+            // printf("sendto finished\n");
         // }
         // usleep(150000);
         }
