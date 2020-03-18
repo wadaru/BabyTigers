@@ -58,6 +58,13 @@ static inline void delay(_word_size_t ms){
 using namespace rp::standalone::rplidar;
 int view3Send[9], view3Recv[9];
 
+int sockSend, sockRecv;
+int portSend, portRecv;
+char IPSend[32], IPRecv[32];
+int yes = 1;
+struct sockaddr_in addrSend, addrRecv;
+RPlidarDriver * drv; //  = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
+
 void print_usage(int argc, const char * argv[])
 {
     printf("Simple LIDAR data grabber for RPLIDAR.\n"
@@ -82,20 +89,6 @@ u_result rplidar_capture(RPlidarDriver * drv,  rplidar_response_measurement_node
     ans = drv->grabScanData(nodes, count);
     if (IS_OK(ans) || ans == RESULT_OPERATION_TIMEOUT) {
         drv->ascendScanData(nodes, count);
-        // plot_histogram(nodes, count);
-/*
-        printf("Do you want to see all the data? (y/n) ");
-        // int key = getchar();
-        int key = 'n';
-        if (key == 'Y' || key == 'y') {
-            for (int pos = 0; pos < (int)count ; ++pos) {
-                printf("%s theta: %03.2f Dist: %08.2f \n", 
-                    (nodes[pos].sync_quality & RPLIDAR_RESP_MEASUREMENT_SYNCBIT) ?"S ":"  ", 
-                    (nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f,
-                    nodes[pos].distance_q2/4.0f);
-            }
-        }
-*/
     } else {
         printf("error code: %x\n", ans);
     }
@@ -103,33 +96,10 @@ u_result rplidar_capture(RPlidarDriver * drv,  rplidar_response_measurement_node
     return ans;
 }
 
-int main(int argc, const char * argv[]) {
-    const char * opt_com_path = NULL;
-    _u32         opt_com_baudrate = 115200;
-    u_result     op_result;
-    rplidar_response_measurement_node_t nodes[8192];
-    size_t   count = _countof(nodes);
-
-    if (argc < 2) {
-        print_usage(argc, argv);
-        return -1;
-    }
-
-    // printf("argc = %d\n", argc);
-    opt_com_path = argv[1];
-    if (argc > 2) opt_com_baudrate = strtoul(argv[2], NULL, 10);
-    // opt_com_baudrate = strtoul(argv[2], NULL, 10);
-
-    int sockSend, sockRecv;
-    int portSend, portRecv;
-    char IPSend[32], IPRecv[32];
+void init_udp(int argc, const char * argv[]) {
     int i;
-    int yes = 1;
-    struct sockaddr_in addrSend, addrRecv;
-
+    
     for(i = 1; i < 9; i++) view3Send[i] = i + 3;
-    unsigned char buf[256];
-    unsigned char checkSum;
 
     if (argc < 4) {
         portSend = 9180; portRecv = 9182;
@@ -157,9 +127,31 @@ int main(int argc, const char * argv[]) {
     bind(sockRecv, (struct sockaddr *)&addrRecv, sizeof(addrRecv));
 
     memset(buf, 0, sizeof(buf));
+}
+
+int main(int argc, const char * argv[]) {
+    const char * opt_com_path = NULL;
+    _u32         opt_com_baudrate = 115200;
+    u_result     op_result;
+    rplidar_response_measurement_node_t nodes[8192];
+    size_t   count = _countof(nodes);
+    int i;
+
+    unsigned char buf[256];
+    unsigned char checkSum;
+
+    if (argc < 2) {
+        print_usage(argc, argv);
+        return -1;
+    }
+
+    opt_com_path = argv[1];
+    if (argc > 2) opt_com_baudrate = strtoul(argv[2], NULL, 10);
+
+    init_udp(argc, argv);
 
     // create the driver instance
-    RPlidarDriver * drv = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
+    drv = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
 
     if (!drv) {
         fprintf(stderr, "insufficent memory, exit\n");
