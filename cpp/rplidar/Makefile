@@ -19,8 +19,13 @@
 #
 # HOME_TREE := ../../
 HOME_TREE := $(CURDIR)/rplidar_sdk/sdk/
+PKGCONFIG = $(shell which pkg-config)
 
 MODULE_NAME := $(notdir $(CURDIR))
+
+# for opencv
+CFLAGS_OPENCV = $(shell $(PKGCONFIG) --cflags 'opencv')
+LDFLAGS_OPENCV = $(shell $(PKGCONFIG) --libs 'opencv')
 
 include $(HOME_TREE)/mak_def.inc
 # BUILD_OUTPUT_ROOT = $(CURDIR)
@@ -31,6 +36,10 @@ C_INCLUDES += -I$(HOME_TREE)/sdk/include -I$(HOME_TREE)/sdk/src
 
 EXTRA_OBJ := 
 LD_LIBS += -lstdc++ -lpthread # -lsocket
+
+CFLAGS += $(CFLAGS_OPENCV)
+LDFLAGS += $(LDFLAGS_OPENCV)
+
 
 all: build_app
 

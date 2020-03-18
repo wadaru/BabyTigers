@@ -37,6 +37,10 @@
 #include <unistd.h>
 #include <netdb.h>
 
+#include <opencv2/opencv.hpp>
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 #endif
@@ -64,12 +68,13 @@ void print_usage(int argc, const char * argv[])
            , argv[0]);
 }
 
-u_result capture_and_display(RPlidarDriver * drv)
+u_result rplidar_capture(RPlidarDriver * drv,  rplidar_response_measurement_node_t nodes[], size_t   count)
 {
     u_result ans;
     
-    rplidar_response_measurement_node_t nodes[8192];
-    size_t   count = _countof(nodes);
+    // rplidar_response_measurement_node_t nodes[8192];
+    // size_t   count = _countof(nodes);
+    count = _countof(nodes);
 
     printf("waiting for data...\n");
 
@@ -78,7 +83,7 @@ u_result capture_and_display(RPlidarDriver * drv)
     if (IS_OK(ans) || ans == RESULT_OPERATION_TIMEOUT) {
         drv->ascendScanData(nodes, count);
         // plot_histogram(nodes, count);
-
+/*
         printf("Do you want to see all the data? (y/n) ");
         // int key = getchar();
         int key = 'n';
@@ -90,6 +95,7 @@ u_result capture_and_display(RPlidarDriver * drv)
                     nodes[pos].distance_q2/4.0f);
             }
         }
+*/
     } else {
         printf("error code: %x\n", ans);
     }
@@ -97,47 +103,12 @@ u_result capture_and_display(RPlidarDriver * drv)
     return ans;
 }
 
-int capture_and_display1(RPlidarDriver * drv) {
-    u_result ans;
-
-    rplidar_response_measurement_node_t nodes[8192];
-    size_t   count = _countof(nodes);
-
-    printf("waiting for data...\n");
-
-    // fetech extactly one 0-360 degrees' scan
-    ans = drv->grabScanData(nodes, count);
-    if (IS_OK(ans) || ans == RESULT_OPERATION_TIMEOUT) {
-        drv->ascendScanData(nodes, count);
-        // plot_histogram(nodes, count);
-
-        /*
-        printf("Do you want to see all the data? (y/n) ");
-        int key = getchar();
-        int key = 'n';
-        if (key == 'Y' || key == 'y') {
-            for (int pos = 0; pos < (int)count ; ++pos) {
-                printf("%s theta: %03.2f Dist: %08.2f \n",
-                    (nodes[pos].sync_quality & RPLIDAR_RESP_MEASUREMENT_SYNCBIT) ?"S ":"  ",
-                    (nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f,
-                    nodes[pos].distance_q2/4.0f);
-            }
-        */
-	return nodes[(int)count / 2].distance_q2/4.0f;
-        // }
-    } else {
-        printf("error code: %x\n", ans);
-    }
-
-    // return ans;
-    return -1;
-
-}
-
 int main(int argc, const char * argv[]) {
     const char * opt_com_path = NULL;
     _u32         opt_com_baudrate = 115200;
     u_result     op_result;
+    rplidar_response_measurement_node_t nodes[8192];
+    size_t   count = _countof(nodes);
 
     if (argc < 2) {
         print_usage(argc, argv);
@@ -277,6 +248,15 @@ int main(int argc, const char * argv[]) {
         }
 	break;
     } while(1);
+
+    //
+    // init for opencv
+    //
+    cv::Mat img = cv::Mat::zeros(500, 500, CV_8UC3);
+    cv::line(img, cv::Point(100, 300), cv::Point(400, 300), cv::Scalar(255,0,0), 10, CV_AA);
+    cv::imshow("Sample", img);
+    cv::waitKey(1);
+
     do {
 
         //
@@ -297,24 +277,15 @@ int main(int argc, const char * argv[]) {
             // get the distance data from LRF.
             //
 
-            // take only one 360 deg scan and display the result as a histogram
-            ////////////////////////////////////////////////////////////////////////////////
-            //
-	    /*
-            if (IS_FAIL(drv->startScan( 0,1 ))) // you can force rplidar to perform scan operation regardless whether the motor is rotating
-                {
-                fprintf(stderr, "Error, cannot start the scan operation.\n");
-                return -1;
-            }
-	    */
-
             int result = 0;
+
+	    if (IS_FAIL(rplidar_capture(drv, nodes, count))) {
+                fprintf(stderr, "Error, cannot grab scan data.\n");
+                break;
+            }
             switch (view3Recv[2]) {
                 case 1:
-                    if (IS_FAIL(result = capture_and_display1(drv))) {
-                        fprintf(stderr, "Error, cannot grab scan data.\n");
-                        break;
-                    }
+                    result = nodes[(int)count / 2].distance_q2/4.0f;
                     break;
                 case 2:
 		case 255:
