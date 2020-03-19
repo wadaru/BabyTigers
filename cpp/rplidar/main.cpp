@@ -65,6 +65,8 @@ char IPSend[32], IPRecv[32];
 int yes = 1;
 struct sockaddr_in addrSend, addrRecv;
 unsigned char buf[256];
+const int offsetAngleDefault = 180;
+int offsetAngle;
 
 const int maxX = 500;
 const int maxY = 500;
@@ -103,11 +105,18 @@ u_result rplidar_capture(RPlidarDriver * drv,  rplidar_response_measurement_node
     return ans;
 }
 
+float deg180(float degree) {
+    while (degree >  180) degree -= 360;
+    while (degree < -180) degree += 360;
+    return degree;
+}
+
 void init_udp(int argc, const char * argv[]) {
     int i;
     
     for(i = 1; i < 9; i++) view3Send[i] = i + 3;
 
+    offsetAngle = offsetAngleDefault;
     if (argc < 4) {
         portSend = 9180; portRecv = 9182;
         strcpy(IPSend, "127.0.1.1");
@@ -117,6 +126,7 @@ void init_udp(int argc, const char * argv[]) {
         portSend = atoi(argv[4]);
         strcpy(IPRecv, argv[5]);
         portRecv = atoi(argv[6]);
+        if (argc == 8) offsetAngle = deg180(atoi(argv[7]));
     }
     printf("UDP connection: send %s:%d, recv %s:%d\n", IPSend, portSend, IPRecv, portRecv);
 
@@ -285,10 +295,10 @@ int main(int argc, const char * argv[]) {
             //
 
             int result = 0;
-	    count = _countof(nodes);
-	    count = 360;
+	        count = _countof(nodes);
+	        count = 360;
 
-	    if (IS_FAIL(rplidar_capture(drv, nodes, count))) {
+	        if (IS_FAIL(rplidar_capture(drv, nodes, count))) {
                 fprintf(stderr, "Error, cannot grab scan data.\n");
                 break;
             }
@@ -298,21 +308,55 @@ int main(int argc, const char * argv[]) {
                     break;
                 case 2:
                     // draw the distance information
-		    float x, y, r, angle;
-		    img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
-		    putPoint(img, 0, 0, 5, cv::Scalar(128, 128, 128));
-		    for (int pos = 0; pos < (int)count; ++pos) {
-			angle = ((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) / 180.0 * 3.14159;
-			r = (nodes[pos].distance_q2/4.0f);
-			x = cos(angle) * r * maxX / 1000.0;
-			y = sin(angle) * r * maxY / 1000.0;
+            	    float x, y, r, angle;
+            	    img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+		            putPoint(img, 0, 0, 20, cv::Scalar(128, 128, 128));
+            	    for (int pos = 0; pos < (int)count; pos++) {
+                		angle = (deg180((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle) / 180.0 * 3.14159;
+                        r = (nodes[pos].distance_q2/4.0f);
+                        x = cos(angle) * r * maxX / 5000.0;
+                        y = sin(angle) * r * maxY / 5000.0;
                         putPoint(img, x, y, 3, cv::Scalar(0, 255, 0));
                         // printf("%d/%d, r: %f, angle %f (%f, %f )\n", pos, (int)count, r, angle, x, y);
                     }
-		    cv::imshow("Sample", img);
-		    cv::waitKey(1);
-		    break;
-		case 255:
+                    cv::imshow("Sample", img);
+                    cv::waitKey(1);
+		            break;
+                case 3:
+                    // the same method for HOKUYO function block
+                    // Input
+                    //   INT2 ... Angle
+                    //   INT3 ... Opening angle
+                    // Output(return)
+                    //   INT1 ... Distance
+                    float openingAngle, minDeg, maxDeg, distance; // angle and r are already defined.
+                    img = img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+                    putPoint(img, 0, 0, 20, cv::Scalar(128, 128, 128));
+                    openingAngle = view3Recv[4];
+                    distance = FLT_MAX;
+                    angle = deg180(view3Recv[3]);
+                    minDeg = deg180(angle - openingAngle / 2.0);
+                    maxDeg = deg180(angle + openingAngle / 2.0);
+                    for (int pos = 0; pos < (int)count; pos++) {
+                        angle = deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
+                        if (minDeg <= angle && angle <= maxDeg) {
+                            r = (nodes[pos].distance_q2/4.0f);
+                            if (r != 0 && r < distance) distance = r;
+                            // printf("minDeg %f, maxDeg %f, deg %f, dist: %f\n", minDeg, maxDeg, angle, r);
+                            angle = angle / 180.0 * 3.14159;
+                            r = (nodes[pos].distance_q2/4.0f);
+                            x = cos(angle) * r * maxX / 5000.0;
+                            y = sin(angle) * r * maxY / 5000.0;
+                            putPoint(img, x, y, 3, cv::Scalar(0, 255, 0));
+                        }
+                    }
+                    // view3Send[2] = (int)distance;
+                    result = (int)distance;
+                    cv::imshow("Sample", img);
+                    cv::waitKey(1);
+
+                    break;
+	        	case 0xffffffff:
                     drv->stop();
                     drv->stopMotor();
 
@@ -321,7 +365,7 @@ int main(int argc, const char * argv[]) {
 
                 default:
                     break;
-	    }
+	        }
 
             if (result != 0) view3Send[2] = result * 1;
             printf("dist = %d\n", result);

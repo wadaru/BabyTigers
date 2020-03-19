@@ -224,7 +224,7 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__1_" md:name="Constant (1)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="10" md:varname="value">
+            <md:varExpr md:value="8" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -280,7 +280,67 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__3_" md:name="Constant (3)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="255" md:varname="value">
+            <md:varExpr md:value="3" md:varname="value">
+              <md:varProperty md:name="visible" md:value="false"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+          <md:outVarExprs>
+            <md:varExpr md:varname="out">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:outVarExprs>
+        </md:unit>
+        <md:unit md:deviceInstanceName="Data Exchange UDP" md:id="actor_output_0_int2" md:name="Output 0 INT2" md:type="REC GmbH Data Exchange UDP INT Writer" md:utspec="rec_gmbh_data_exchange_udp_int_writer" md:variantName="Output[ 0] INT[2]">
+          <md:stateVarExprs>
+            <md:varExpr md:varname="frame">
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+            <md:varExpr md:varname="port">
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:stateVarExprs>
+          <md:inVarExprs>
+            <md:varExpr md:value="0" md:varname="value">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+        </md:unit>
+        <md:unit md:deviceInstanceName="Data Exchange UDP" md:id="actor_output_0_int3" md:name="Output 0 INT3" md:type="REC GmbH Data Exchange UDP INT Writer" md:utspec="rec_gmbh_data_exchange_udp_int_writer" md:variantName="Output[ 0] INT[3]">
+          <md:stateVarExprs>
+            <md:varExpr md:varname="frame">
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+            <md:varExpr md:varname="port">
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:stateVarExprs>
+          <md:inVarExprs>
+            <md:varExpr md:value="0" md:varname="value">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+        </md:unit>
+        <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__4_" md:name="Constant (4)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
+          <md:inVarExprs>
+            <md:varExpr md:value="-100" md:varname="value">
+              <md:varProperty md:name="visible" md:value="false"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+          <md:outVarExprs>
+            <md:varExpr md:varname="out">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:outVarExprs>
+        </md:unit>
+        <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__5_" md:name="Constant (5)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
+          <md:inVarExprs>
+            <md:varExpr md:value="25" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -305,6 +365,14 @@
         <md:edge md:cons="1" md:delay="0" md:id="edge_3" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__3_"/>
           <md:to md:con="value" md:unit="actor_output_0_int1"/>
+        </md:edge>
+        <md:edge md:cons="1" md:delay="0" md:id="edge_4" md:prod="1">
+          <md:from md:con="out" md:unit="actor_constant__4_"/>
+          <md:to md:con="value" md:unit="actor_output_0_int2"/>
+        </md:edge>
+        <md:edge md:cons="1" md:delay="0" md:id="edge_5" md:prod="1">
+          <md:from md:con="out" md:unit="actor_constant__5_"/>
+          <md:to md:con="value" md:unit="actor_output_0_int3"/>
         </md:edge>
       </md:edges>
     </md:sdf>
@@ -400,19 +468,19 @@
         </md:unit>
       </md:units>
       <md:edges>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_4" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_6" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__1_2"/>
           <md:to md:con="value" md:unit="actor_output_0_int03"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_5" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_7" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__2_5"/>
           <md:to md:con="op2" md:unit="actor_greater__1_"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_6" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_8" md:prod="1">
           <md:from md:con="gr" md:unit="actor_greater__1_"/>
           <md:to md:con="new_value" md:unit="actor_checkflag4"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_7" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_9" md:prod="1">
           <md:from md:con="time" md:unit="actor_timer__1_"/>
           <md:to md:con="op1" md:unit="actor_greater__1_"/>
         </md:edge>
@@ -453,10 +521,14 @@
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__1_" md:width="-1" md:x="354" md:y="-168">
             <md:unitDialogLayout md:objectName="70610b922b9de8b33aafd528370058a157991b59252364a14dc43645ca26ce8"/>
           </md:unit>
-          <md:unit md:height="-1" md:nameDisplay="visible" md:unit="actor_checkflag" md:width="-1" md:x="498" md:y="0"/>
-          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__2_" md:width="-1" md:x="366" md:y="0"/>
+          <md:unit md:height="-1" md:nameDisplay="visible" md:unit="actor_checkflag" md:width="-1" md:x="486" md:y="168"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__2_" md:width="-1" md:x="354" md:y="168"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int1" md:width="-1" md:x="480" md:y="-108"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__3_" md:width="-1" md:x="360" md:y="-108"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int2" md:width="-1" md:x="480" md:y="-54"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int3" md:width="-1" md:x="480" md:y="6"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__4_" md:width="-1" md:x="354" md:y="-54"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__5_" md:width="-1" md:x="342" md:y="6"/>
         </md:units>
         <md:nets>
           <md:net>
@@ -468,13 +540,19 @@
           <md:net>
             <md:edge md:edge="edge_3"/>
           </md:net>
+          <md:net>
+            <md:edge md:edge="edge_4"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_5"/>
+          </md:net>
         </md:nets>
         <md:texts>
-          <md:text md:text="if you want to finish this programm,&#xA;then set 1 (true)." md:x="546" md:y="-6"/>
+          <md:text md:text="if you want to finish this programm,&#xA;then set 1 (true)." md:x="534" md:y="162"/>
         </md:texts>
       </md:sdf>
       <md:sdf md:sdfmodel="sdfmodel_udp_finish" md:showData="false" md:showToolTips="false" md:tab="2">
-        <md:sdfViewLayout md:data="000000ff00000000fd0000000000000280000001e000000004000000040000000800000008fc00000000"/>
+        <md:sdfViewLayout md:data="000000ff00000000fd0000000000000460000002ef00000004000000040000000800000008fc00000000"/>
         <md:units>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__1_2" md:width="-1" md:x="426" md:y="-96"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int03" md:width="-1" md:x="546" md:y="-42"/>
@@ -485,16 +563,16 @@
         </md:units>
         <md:nets>
           <md:net>
-            <md:edge md:edge="edge_4"/>
-          </md:net>
-          <md:net>
-            <md:edge md:edge="edge_5"/>
-          </md:net>
-          <md:net>
             <md:edge md:edge="edge_6"/>
           </md:net>
           <md:net>
             <md:edge md:edge="edge_7"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_8"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_9"/>
           </md:net>
         </md:nets>
         <md:texts/>
