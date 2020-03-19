@@ -224,7 +224,7 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__1_" md:name="Constant (1)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="12" md:varname="value">
+            <md:varExpr md:value="10" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -474,7 +474,7 @@
         </md:texts>
       </md:sdf>
       <md:sdf md:sdfmodel="sdfmodel_udp_finish" md:showData="false" md:showToolTips="false" md:tab="2">
-        <md:sdfViewLayout md:data="000000ff00000000fd0000000000000460000002ef00000004000000040000000800000008fc00000000"/>
+        <md:sdfViewLayout md:data="000000ff00000000fd0000000000000280000001e000000004000000040000000800000008fc00000000"/>
         <md:units>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__1_2" md:width="-1" md:x="426" md:y="-96"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int03" md:width="-1" md:x="546" md:y="-42"/>
