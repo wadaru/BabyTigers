@@ -40,6 +40,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+#include <math.h>
 
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
@@ -63,7 +64,13 @@ int portSend, portRecv;
 char IPSend[32], IPRecv[32];
 int yes = 1;
 struct sockaddr_in addrSend, addrRecv;
+unsigned char buf[256];
+
+const int maxX = 500;
+const int maxY = 500;
+
 RPlidarDriver * drv; //  = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
+
 
 void print_usage(int argc, const char * argv[])
 {
@@ -81,7 +88,7 @@ u_result rplidar_capture(RPlidarDriver * drv,  rplidar_response_measurement_node
     
     // rplidar_response_measurement_node_t nodes[8192];
     // size_t   count = _countof(nodes);
-    count = _countof(nodes);
+    // count = _countof(nodes);
 
     printf("waiting for data...\n");
 
@@ -129,27 +136,19 @@ void init_udp(int argc, const char * argv[]) {
     memset(buf, 0, sizeof(buf));
 }
 
-int main(int argc, const char * argv[]) {
+void init_rplidar(int argc, const char * argv[]) {
     const char * opt_com_path = NULL;
     _u32         opt_com_baudrate = 115200;
     u_result     op_result;
-    rplidar_response_measurement_node_t nodes[8192];
-    size_t   count = _countof(nodes);
-    int i;
-
-    unsigned char buf[256];
-    unsigned char checkSum;
 
     if (argc < 2) {
         print_usage(argc, argv);
-        return -1;
+        exit(-1);
     }
 
     opt_com_path = argv[1];
+
     if (argc > 2) opt_com_baudrate = strtoul(argv[2], NULL, 10);
-
-    init_udp(argc, argv);
-
     // create the driver instance
     drv = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
 
@@ -160,6 +159,7 @@ int main(int argc, const char * argv[]) {
 
     rplidar_response_device_health_t healthinfo;
     rplidar_response_device_info_t devinfo;
+
     do {
         // try to connect
         if (IS_FAIL(drv->connect(opt_com_path, opt_com_baudrate))) {
@@ -188,9 +188,8 @@ int main(int argc, const char * argv[]) {
         for (int pos = 0; pos < 16 ;++pos) {
             printf("%02X", devinfo.serialnum[pos]);
         }
-
         printf("\n"
-                "Version: "RPLIDAR_SDK_VERSION"\n"
+                "Version: " RPLIDAR_SDK_VERSION "\n"
                 "Firmware Ver: %d.%02d\n"
                 "Hardware Rev: %d\n"
                 , devinfo.firmware_version>>8
@@ -230,22 +229,38 @@ int main(int argc, const char * argv[]) {
         }
         drv->startMotor();
 
-	// take only one 360 deg scan and display the result as a histogram
+        // take only one 360 deg scan and display the result as a histogram
         ////////////////////////////////////////////////////////////////////////////////
         //
         if (IS_FAIL(drv->startScan( 0,1 ))) // you can force rplidar to perform scan operation regardless whether the motor is rotating
         {
             fprintf(stderr, "Error, cannot start the scan operation.\n");
-            return -1;
+            exit(-1);
         }
-	break;
+        break;
     } while(1);
+}
+
+void putPoint(cv::Mat img, int x, int y, int size, cv::Scalar scalar) {
+
+    cv::rectangle(img, cv::Point(maxX / 2 -  size / 2 + x, maxY / 2 - size / 2 + y), cv::Point(maxX / 2 + size / 2 + x, maxY / 2 + size / 2 + y), scalar);
+}
+
+int main(int argc, const char * argv[]) {
+    rplidar_response_measurement_node_t nodes[8192];
+    size_t   count = _countof(nodes);
+    int i;
+
+    unsigned char checkSum;
+
+    init_udp(argc, argv);
+    init_rplidar(argc, argv);
 
     //
     // init for opencv
     //
-    cv::Mat img = cv::Mat::zeros(500, 500, CV_8UC3);
-    cv::line(img, cv::Point(100, 300), cv::Point(400, 300), cv::Scalar(255,0,0), 10, CV_AA);
+    cv::Mat img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+    // cv::line(img, cv::Point(maxX, 300), cv::Point(400, 300), cv::Scalar(255,0,0), 10, CV_AA);
     cv::imshow("Sample", img);
     cv::waitKey(1);
 
@@ -270,6 +285,8 @@ int main(int argc, const char * argv[]) {
             //
 
             int result = 0;
+	    count = _countof(nodes);
+	    count = 360;
 
 	    if (IS_FAIL(rplidar_capture(drv, nodes, count))) {
                 fprintf(stderr, "Error, cannot grab scan data.\n");
@@ -280,6 +297,21 @@ int main(int argc, const char * argv[]) {
                     result = nodes[(int)count / 2].distance_q2/4.0f;
                     break;
                 case 2:
+                    // draw the distance information
+		    float x, y, r, angle;
+		    img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+		    putPoint(img, 0, 0, 5, cv::Scalar(128, 128, 128));
+		    for (int pos = 0; pos < (int)count; ++pos) {
+			angle = ((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) / 180.0 * 3.14159;
+			r = (nodes[pos].distance_q2/4.0f);
+			x = cos(angle) * r * maxX / 1000.0;
+			y = sin(angle) * r * maxY / 1000.0;
+                        putPoint(img, x, y, 3, cv::Scalar(0, 255, 0));
+                        // printf("%d/%d, r: %f, angle %f (%f, %f )\n", pos, (int)count, r, angle, x, y);
+                    }
+		    cv::imshow("Sample", img);
+		    cv::waitKey(1);
+		    break;
 		case 255:
                     drv->stop();
                     drv->stopMotor();

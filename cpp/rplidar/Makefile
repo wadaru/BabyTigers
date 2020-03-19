@@ -35,7 +35,7 @@ CXXSRC += main.cpp
 C_INCLUDES += -I$(HOME_TREE)/sdk/include -I$(HOME_TREE)/sdk/src
 
 EXTRA_OBJ := 
-LD_LIBS += -lstdc++ -lpthread # -lsocket
+LD_LIBS += -lstdc++ -lpthread -lm# -lsocket
 
 CFLAGS += $(CFLAGS_OPENCV)
 LDFLAGS += $(LDFLAGS_OPENCV)
