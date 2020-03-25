@@ -40,20 +40,32 @@
 #include <opencv2/opencv.hpp>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+#include <opencv/cvaux.h>
+#include <opencv/cxcore.h>
 #include <math.h>
 
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 #endif
 
+struct areaRectangle {
+	cv::Point2f min;
+	cv::Point2f max;
+};
+
+struct areaBox {
+	cv::Point2f p0, p1, p2, p3;
+};
+
+const float PI = 3.14159;
 #include <unistd.h>
 static inline void delay(_word_size_t ms){
-    while (ms>=1000){
-        usleep(1000*1000);
-        ms-=1000;
+    while (ms >= 1000){
+        usleep(1000 * 1000);
+        ms -= 1000;
     };
-    if (ms!=0)
-        usleep(ms*1000);
+    if (ms != 0)
+        usleep(ms * 1000);
 }
 
 using namespace rp::standalone::rplidar;
@@ -70,6 +82,11 @@ int offsetAngle;
 
 const int maxX = 500;
 const int maxY = 500;
+
+const cv::Scalar colorData[] = 
+{cv::Scalar(  0,   0, 255), cv::Scalar(255,   0,   0), cv::Scalar(255,   0, 255),
+ cv::Scalar(  0, 255,   0), cv::Scalar(  0, 255, 255), cv::Scalar(255, 255,   0),
+ cv::Scalar(255, 255, 255)};
 
 RPlidarDriver * drv; //  = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
 
@@ -109,6 +126,10 @@ float deg180(float degree) {
     while (degree >  180) degree -= 360;
     while (degree < -180) degree += 360;
     return degree;
+}
+
+float degPos(rplidar_response_measurement_node_t node){
+    return deg180(((node.angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
 }
 
 void init_udp(int argc, const char * argv[]) {
@@ -251,9 +272,198 @@ void init_rplidar(int argc, const char * argv[]) {
     } while(1);
 }
 
-void putPoint(cv::Mat img, int x, int y, int size, cv::Scalar scalar) {
+//
+// Unit is [mm].
+//
+// const float sizeRate = 10000.0;
+float sizeRate = 10000.0;
+float cvX(float x) { return maxX / 2 + x * maxX / sizeRate; }
+float cvY(float y) { return maxY / 2 + y * maxY / sizeRate; }
+cv::Point2f cvP(cv::Point2f P) {
+    cv::Point2f r;
+    r.x = cvX(P.x);
+    r.y = cvY(P.y);
+    return r;
+}
+void putPointXY(cv::Mat img, cv::Point2f P, int size, cv::Scalar scalar) {
+    cv::Point2f startP, endP, sizeP;
+    sizeP.x = size * maxX / sizeRate / 2;
+    sizeP.y = size * maxY / sizeRate / 2;
+/*    startP = cvP(P) - sizeP;
+    endP   = cvP(P) + sizeP;
+*/
+    startP.x = cvX(P.x) - size * maxX / sizeRate / 2;
+    startP.y = cvY(P.y) - size * maxY / sizeRate / 2;
+    endP.x   = cvX(P.x) + size * maxX / sizeRate / 2;
+    endP.y   = cvY(P.y) + size * maxY / sizeRate / 2;
 
-    cv::rectangle(img, cv::Point(maxX / 2 -  size / 2 + x, maxY / 2 - size / 2 + y), cv::Point(maxX / 2 + size / 2 + x, maxY / 2 + size / 2 + y), scalar);
+    cv::rectangle(img, startP, endP, scalar);
+}
+//
+// R is the radius. angle is the degree.
+//
+void putPointR(cv::Mat img, float angle, float r, int size, cv::Scalar scalar) {
+    cv::Point2f circleP;
+    circleP.x = cos(angle / 180.0 * PI) * r;
+    circleP.y = sin(angle / 180.0 * PI) * r;
+    putPointXY(img, circleP, size, scalar);
+}
+
+void putLineXY(cv::Mat img, cv::Point2f P1, cv::Point2f P2, int size, cv::Scalar scalar) {
+    cv::line(img, cvP(P1), cvP(P2), scalar, size,CV_AA);
+}
+void putLineR(cv::Mat img, float angle1, float r1, float angle2, float r2, int size, cv::Scalar scalar) {
+    cv::Point2f p1, p2;
+    p1.x = cos(angle1 / 180.0 * PI) * r1;
+    p1.y = sin(angle1 / 180.0 * PI) * r1;
+    p2.x = cos(angle2 / 180.0 * PI) * r2;
+    p2.y = sin(angle2 / 180.0 * PI) * r2;
+    putLineXY(img, p1, p2, size, scalar);
+}
+
+void putCircle(cv::Mat img, cv::Point2f P, int size, cv::Scalar scalar) {
+    cv::circle(img, cvP(P), size * maxX / sizeRate, scalar, size * maxX / sizeRate / 5, CV_AA);
+}
+
+void getAllData(cv::Mat img, rplidar_response_measurement_node_t nodes[], size_t count){
+    // draw the distance information
+    float r, angle;
+    cv::Point2f p;
+    for (int pos = 0; pos < (int)count; pos++) {
+        angle = degPos(nodes[pos]); // (deg180((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle); // / 180.0 * 3.14159;
+        r = (nodes[pos].distance_q2/4.0f);
+        p.x = cos(angle) * r;
+        p.y = sin(angle) * r;
+        putLineXY(img, p, cv::Point2f(0, 0), 10, cv::Scalar(0, 128, 0));
+        putPointXY(img, p, 50, cv::Scalar(0, 255, 0));
+        // printf("%d/%d, r: %f, angle %f (%f, %f )\n", pos, (int)count, r, angle, x, y);
+    }
+}
+
+float getLRFData(cv::Mat img, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
+    float angle, r, distance;
+
+    distance = FLT_MAX;
+printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
+    putPointR(img, minDeg, 200, 100, cv::Scalar(0, 0, 255));
+    putPointR(img, maxDeg, 200, 100, cv::Scalar(0, 0, 255));
+    for (int pos = 0; pos < (int)count; pos++) {
+        angle = degPos(nodes[pos]); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
+        if (minDeg <= angle && angle <= maxDeg) {
+            r = (nodes[pos].distance_q2/4.0f);
+            if (r != 0 && r < distance) distance = r;
+            // printf("minDeg %f, maxDeg %f, deg %f, dist: %f\n", minDeg, maxDeg, angle, r);
+            // angle = angle / 180.0 * 3.14159;
+            // r = (nodes[pos].distance_q2/4.0f);
+            // putLineR(img, angle, r, 0, 0, 10, cv::Scalar(0, 128, 0));
+            putPointR(img, angle, r, 50, cv::Scalar(0, 255, 0));
+        }
+    }
+    // view3Send[2] = (int)distance;
+    return (float)distance;
+}
+
+double lineRad(cv::Point2f line) {
+	double d = line.x * line.x + line.y * line.y;
+	double result;
+	if (d == 0) return 0;
+	result = acosf(line.x / sqrtf(d));
+	if (result == NAN) {
+		result = line.x > 0 ? 0 : PI;
+		printf("NAN detected PI = %f (%f, %f)\n", result, line.x, line.y);
+	}
+	if (line.y < 0) result = PI * 2.0 - result;
+	return result;
+}	
+
+double lineRad(areaRectangle line) {
+    cv::Point2f lineRadRet;
+    lineRadRet.x = line.max.x - line.min.x;
+    lineRadRet.y = line.max.y - line.min.y;
+    return lineRad(lineRadRet);
+}
+
+
+bool checkInclude(double min1, double max1, double min2, double max2) {
+    double tmp;
+    if (min1 > max1) { tmp = min1; min1 = max1; max1 = tmp; }
+    if (min2 > max2) { tmp = min2; min2 = max2; max2 = tmp; }
+    if (min1 <= min2 && min2 <= max1) return true;
+    if (min1 <= max2 && max2 <= max1) return true;
+    if (min2 <= min1 && min1 <= max2) return true;
+    if (min2 <= max1 && max1 <= max2) return true;
+    return false;
+}
+
+bool checkSameLine(areaRectangle line1, areaRectangle line2) {
+    double radDiff = 5.0 / 180.0 * PI;
+    return ((fabs(lineRad(line1) - lineRad(line2)) <= radDiff) &&
+        (checkInclude(line1.min.x, line1.max.x, line2.min.x, line2.max.x)) &&
+        (checkInclude(line1.min.y, line1.max.y, line2.min.y, line2.max.y)));
+}
+
+
+void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
+    float x, y, oldX = 0, oldY = 0;
+    float leftAngle, leftR, rightAngle, rightR = 0; // , leftX, leftY;
+    cv::Point2f leftP, rightP, oldP;
+    bool findFlag;
+    int lineColor = 0;
+    const int threshold = 7;
+
+    for (int pos = 0; pos < (int)count; pos++) {
+        // at first, find the left edge that has some distance.
+        leftAngle = degPos(nodes[pos]); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
+        if (minDeg <= leftAngle && leftAngle <= maxDeg) {
+            leftR = (nodes[pos].distance_q2/4.0f);
+            findFlag = false;
+            if (leftR > 0) { // find the left edge
+                leftP.x = cos(leftAngle / 180.0 * PI) * leftR;
+                leftP.y = sin(leftAngle / 180.0 * PI) * leftR;
+                oldP = leftP;
+                // 
+                // find the right edge
+                areaRectangle leftLine, rightLine;
+                leftLine.min.x = rightLine.min.x = leftP.x;
+                leftLine.min.y = rightLine.min.y = leftP.y;
+                int rightPos;
+                for (rightPos = pos; rightPos < (int)count; rightPos++) {
+                    rightAngle = degPos(nodes[rightPos]);
+                    if (maxDeg < rightAngle) break;
+                    rightR = (nodes[rightPos].distance_q2/4.0f);
+                    if (rightR > 0) {
+                        rightP.x = cos(rightAngle / 180.0 * PI) * rightR;
+                        rightP.y = sin(rightAngle / 180.0 * PI) * rightR;
+                        if (oldP != leftP) {
+                            double leftRad, rightRad;
+                            leftLine.max = oldP;
+                            rightLine.max = rightP;
+                            // line1: left-oldP, line2: left-rightP
+                            // check the same direction for line1 and line2.
+                            if (!(checkSameLine(leftLine, rightLine))) break;
+                        }
+                        oldP = rightP;
+                    } else {
+                        break;
+                    }
+                }
+                rightPos--;
+                if (rightPos > 0 && rightR > 0 && (rightPos - pos) > threshold && 
+                    leftAngle < maxDeg && rightAngle < maxDeg && 
+                    pos < (int)count - threshold - 1  && 
+                    rightPos < (int)count - threshold - 1) {
+                    findFlag = true;
+                    pos = rightPos;
+                }
+                if (findFlag) {
+                    putLineXY(img, leftP, rightP, 3, colorData[lineColor]);
+                    if (++lineColor > 8) lineColor = 0;
+                    findFlag = false;
+                }
+            }
+        }
+    }
+    printf("count: %d\n", (int)count);
 }
 
 int main(int argc, const char * argv[]) {
@@ -302,25 +512,17 @@ int main(int argc, const char * argv[]) {
                 fprintf(stderr, "Error, cannot grab scan data.\n");
                 break;
             }
+            img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+            putCircle(img, cv::Point(0, 150), 250, cv::Scalar(128, 128, 128));
+            sizeRate = 10000.0;
+
             switch (view3Recv[2]) {
                 case 1:
                     result = nodes[(int)count / 2].distance_q2/4.0f;
                     break;
                 case 2:
-                    // draw the distance information
-            	    float x, y, r, angle;
-            	    img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
-		            putPoint(img, 0, 0, 20, cv::Scalar(128, 128, 128));
-            	    for (int pos = 0; pos < (int)count; pos++) {
-                		angle = (deg180((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle) / 180.0 * 3.14159;
-                        r = (nodes[pos].distance_q2/4.0f);
-                        x = cos(angle) * r * maxX / 5000.0;
-                        y = sin(angle) * r * maxY / 5000.0;
-                        putPoint(img, x, y, 3, cv::Scalar(0, 255, 0));
-                        // printf("%d/%d, r: %f, angle %f (%f, %f )\n", pos, (int)count, r, angle, x, y);
-                    }
-                    cv::imshow("Sample", img);
-                    cv::waitKey(1);
+                    // getAllData(img, nodes, count);
+                    getLRFData(img, -180, 180, nodes, count);
 		            break;
                 case 3:
                     // the same method for HOKUYO function block
@@ -329,32 +531,22 @@ int main(int argc, const char * argv[]) {
                     //   INT3 ... Opening angle
                     // Output(return)
                     //   INT1 ... Distance
-                    float openingAngle, minDeg, maxDeg, distance; // angle and r are already defined.
-                    img = img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
-                    putPoint(img, 0, 0, 20, cv::Scalar(128, 128, 128));
+                    float angle, openingAngle, minDeg, maxDeg;
                     openingAngle = view3Recv[4];
-                    distance = FLT_MAX;
                     angle = deg180(view3Recv[3]);
                     minDeg = deg180(angle - openingAngle / 2.0);
                     maxDeg = deg180(angle + openingAngle / 2.0);
-                    for (int pos = 0; pos < (int)count; pos++) {
-                        angle = deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
-                        if (minDeg <= angle && angle <= maxDeg) {
-                            r = (nodes[pos].distance_q2/4.0f);
-                            if (r != 0 && r < distance) distance = r;
-                            // printf("minDeg %f, maxDeg %f, deg %f, dist: %f\n", minDeg, maxDeg, angle, r);
-                            angle = angle / 180.0 * 3.14159;
-                            r = (nodes[pos].distance_q2/4.0f);
-                            x = cos(angle) * r * maxX / 5000.0;
-                            y = sin(angle) * r * maxY / 5000.0;
-                            putPoint(img, x, y, 3, cv::Scalar(0, 255, 0));
-                        }
-                    }
-                    // view3Send[2] = (int)distance;
-                    result = (int)distance;
-                    cv::imshow("Sample", img);
-                    cv::waitKey(1);
-
+                    result = (int)getLRFData(img, minDeg, maxDeg, nodes, count);
+                    break;
+                case 4:
+                    sizeRate = 5000.0;
+                    // float angle, openingAngle, minDeg, maxDeg;
+                    openingAngle = view3Recv[4];
+                    angle = deg180(view3Recv[3]);
+                    minDeg = deg180(angle - openingAngle / 2.0);
+                    maxDeg = deg180(angle + openingAngle / 2.0);
+                    getLRFData(img, minDeg, maxDeg, nodes, count);
+                    recognizeLine(img, minDeg, maxDeg, nodes, count); 
                     break;
 	        	case 0xffffffff:
                     drv->stop();
@@ -366,6 +558,9 @@ int main(int argc, const char * argv[]) {
                 default:
                     break;
 	        }
+
+            cv::imshow("Sample", img);
+            cv::waitKey(1);
 
             if (result != 0) view3Send[2] = result * 1;
             printf("dist = %d\n", result);

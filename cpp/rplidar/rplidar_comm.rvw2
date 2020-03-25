@@ -136,6 +136,7 @@
     <md:utspec md:id="rec_gmbh_data_exchange_udp_int_reader"/>
     <md:utspec md:id="rec_gmbh_data_exchange_udp_int_writer"/>
     <md:utspec md:id="rec_gmbh_robotino_timer"/>
+    <md:utspec md:id="rec_gmbh_robotino_drive_system"/>
     <md:utspec md:id="rec_gmbh_global_variable_writer_float"/>
   </md:utspecs>
 
@@ -280,7 +281,7 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__3_" md:name="Constant (3)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="3" md:varname="value">
+            <md:varExpr md:value="4" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -326,7 +327,7 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__4_" md:name="Constant (4)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="-100" md:varname="value">
+            <md:varExpr md:value="-90" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -340,7 +341,51 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__5_" md:name="Constant (5)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="25" md:varname="value">
+            <md:varExpr md:value="170" md:varname="value">
+              <md:varProperty md:name="visible" md:value="false"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+          <md:outVarExprs>
+            <md:varExpr md:varname="out">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:outVarExprs>
+        </md:unit>
+        <md:unit md:deviceInstanceName="Robotino®" md:id="actor_drive_system" md:name="Drive System" md:type="REC GmbH Robotino Drive System" md:utspec="rec_gmbh_robotino_drive_system" md:variantName="REC GmbH Robotino Drive System">
+          <md:inVarExprs>
+            <md:varExpr md:value="0.000000" md:varname="vx_set">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+            <md:varExpr md:value="0.000000" md:varname="vy_set">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+            <md:varExpr md:value="0.000000" md:varname="omega_set">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+          <md:outVarExprs>
+            <md:varExpr md:varname="vx">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+            <md:varExpr md:varname="vy">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+            <md:varExpr md:varname="omega">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:outVarExprs>
+        </md:unit>
+        <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__6_" md:name="Constant (6)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_float" md:variantName="REC GmbH Constant">
+          <md:inVarExprs>
+            <md:varExpr md:value="0.000000" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -373,6 +418,10 @@
         <md:edge md:cons="1" md:delay="0" md:id="edge_5" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__5_"/>
           <md:to md:con="value" md:unit="actor_output_0_int3"/>
+        </md:edge>
+        <md:edge md:cons="1" md:delay="0" md:id="edge_6" md:prod="1">
+          <md:from md:con="out" md:unit="actor_constant__6_"/>
+          <md:to md:con="omega_set" md:unit="actor_drive_system"/>
         </md:edge>
       </md:edges>
     </md:sdf>
@@ -468,19 +517,19 @@
         </md:unit>
       </md:units>
       <md:edges>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_6" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_7" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__1_2"/>
           <md:to md:con="value" md:unit="actor_output_0_int03"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_7" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_8" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__2_5"/>
           <md:to md:con="op2" md:unit="actor_greater__1_"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_8" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_9" md:prod="1">
           <md:from md:con="gr" md:unit="actor_greater__1_"/>
           <md:to md:con="new_value" md:unit="actor_checkflag4"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_9" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_10" md:prod="1">
           <md:from md:con="time" md:unit="actor_timer__1_"/>
           <md:to md:con="op1" md:unit="actor_greater__1_"/>
         </md:edge>
@@ -529,6 +578,8 @@
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int3" md:width="-1" md:x="480" md:y="6"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__4_" md:width="-1" md:x="354" md:y="-54"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__5_" md:width="-1" md:x="342" md:y="6"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_drive_system" md:width="-1" md:x="744" md:y="-72"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__6_" md:width="-1" md:x="648" md:y="-24"/>
         </md:units>
         <md:nets>
           <md:net>
@@ -545,6 +596,9 @@
           </md:net>
           <md:net>
             <md:edge md:edge="edge_5"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_6"/>
           </md:net>
         </md:nets>
         <md:texts>
@@ -563,9 +617,6 @@
         </md:units>
         <md:nets>
           <md:net>
-            <md:edge md:edge="edge_6"/>
-          </md:net>
-          <md:net>
             <md:edge md:edge="edge_7"/>
           </md:net>
           <md:net>
@@ -573,6 +624,9 @@
           </md:net>
           <md:net>
             <md:edge md:edge="edge_9"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_10"/>
           </md:net>
         </md:nets>
         <md:texts/>
