@@ -48,6 +48,9 @@
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 #endif
 
+const float laserR = 150.0;
+const float laserPhi = 0.0;
+
 struct areaRectangle {
 	cv::Point2f min;
 	cv::Point2f max;
@@ -77,11 +80,12 @@ char IPSend[32], IPRecv[32];
 int yes = 1;
 struct sockaddr_in addrSend, addrRecv;
 unsigned char buf[256];
-const int offsetAngleDefault = 180;
+const int offsetAngleDefault = -90; //  180;
 int offsetAngle;
 
 const int maxX = 500;
 const int maxY = 500;
+
 
 const cv::Scalar colorData[] = 
 {cv::Scalar(  0,   0, 255), cv::Scalar(255,   0,   0), cv::Scalar(255,   0, 255),
@@ -90,6 +94,14 @@ const cv::Scalar colorData[] =
 
 RPlidarDriver * drv; //  = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
 
+struct pointHistory {
+    cv::Point2f p;
+    int ttl;
+};
+
+const int maxPointData = 10000;
+cv::Point2f pointData[maxPointData];
+pointHistory pointHistory[maxPointData];
 
 void print_usage(int argc, const char * argv[])
 {
@@ -342,11 +354,18 @@ void getAllData(cv::Mat img, rplidar_response_measurement_node_t nodes[], size_t
 
 float getLRFData(cv::Mat img, float robotX, float robotY, float robotPhi, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
     float angle, r, distance;
+    int pointNo = 0;
 
     distance = FLT_MAX;
 printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
-    putPointR(img, minDeg, 200, 100, cv::Scalar(0, 0, 255));
-    putPointR(img, maxDeg, 200, 100, cv::Scalar(0, 0, 255));
+    cv::Point2f p;
+    p.x = cos((minDeg - robotPhi)/ 180.0 * PI) * 250.0 + 0.0;
+    p.y = sin((minDeg - robotPhi)/ 180.0 * PI) * 250.0;
+    putPointXY(img, p, 100, cv::Scalar(0, 0, 255));
+    p.x = cos((maxDeg - robotPhi) / 180.0 * PI) * 250.0 + 0.0;
+    p.y = sin((maxDeg - robotPhi) / 180.0 * PI) * 250.0;
+    putPointXY(img, p, 100, cv::Scalar(64, 64, 255));
+    putCircle(img, cv::Point2f(0, 0), 100, cv::Scalar(128, 128, 255));
     for (int pos = 0; pos < (int)count; pos++) {
         angle = deg180(degPos(nodes[pos]) - robotPhi); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
         if (minDeg <= angle && angle <= maxDeg) {
@@ -357,8 +376,14 @@ printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
             circleP.x = cos(angle / 180.0 * PI) * r + robotX;
             circleP.y = sin(angle / 180.0 * PI) * r + robotY;
             putPointXY(img, circleP, 50, cv::Scalar(0, 255, 0));
+            if (circleP.x !=0 && circleP.y !=0 ) {
+                pointData[pointNo].x = circleP.x;
+                pointData[pointNo++].y = circleP.y;
+            }
         }
     }
+    pointData[pointNo].x = 0;
+    pointData[pointNo].y = 0;
     // view3Send[2] = (int)distance;
     return (float)distance;
 }
@@ -493,10 +518,21 @@ int main(int argc, const char * argv[]) {
     //
     // init for opencv
     //
-    cv::Mat img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+    cv::Mat img  = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+    cv::Mat img2 = cv::Mat::zeros(maxX, maxY, CV_8UC3);
+    cv::Vec3b pointColor;
+
     // cv::line(img, cv::Point(maxX, 300), cv::Point(400, 300), cv::Scalar(255,0,0), 10, CV_AA);
     cv::imshow("Sample", img);
     cv::waitKey(1);
+
+    for(int i = 0; i < maxPointData; i++) {
+        pointData[i].x = 0;
+        pointData[i].y = 0;
+        pointHistory[i].p.x = 0;
+        pointHistory[i].p.y = 0;
+        pointHistory[i].ttl = 0;
+    }
 
     do {
 
@@ -527,7 +563,10 @@ int main(int argc, const char * argv[]) {
                 break;
             }
             img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
-            putCircle(img, cv::Point(0, 150), 250, cv::Scalar(128, 128, 128));
+            cv::Point2f robot;
+            robot.x = -cos(laserPhi / 180.0 * PI) * laserR;
+            robot.y = -sin(laserPhi / 180.0 * PI) * laserR;
+            putCircle(img, robot, 250, cv::Scalar(128, 128, 128));
             sizeRate = 10000.0;
 
             switch (view3Recv[2]) {
@@ -559,11 +598,12 @@ int main(int argc, const char * argv[]) {
                     angle = deg180(view3Recv[3]);
                     minDeg = deg180(angle - openingAngle / 2.0);
                     maxDeg = deg180(angle + openingAngle / 2.0);
-                    getLRFData(img, minDeg, maxDeg, nodes, count);
+                    result = (int)getLRFData(img, minDeg, maxDeg, nodes, count);
                     recognizeLine(img, minDeg, maxDeg, nodes, count); 
                     break;
                 case 5: // make the map
                     float robotX, robotY, robotPhi;
+                    int pointNo;
                     sizeRate = 5000.0;
                     openingAngle = view3Recv[4];
                     angle = deg180(view3Recv[3]);
@@ -572,7 +612,20 @@ int main(int argc, const char * argv[]) {
                     robotPhi = view3Recv[7];
                     minDeg = deg180(angle - openingAngle / 2.0);
                     maxDeg = deg180(angle + openingAngle / 2.0);
-                    getLRFData(img, robotX, robotY, robotPhi, minDeg, maxDeg, nodes, count);
+                    result = (int)getLRFData(img, robotX, robotY, robotPhi, minDeg, maxDeg, nodes, count);
+                    for (int x = 0; x < maxX; x++) {
+                        for(int y = 0; y < maxY; y++) {
+                            pointColor = img2.at<cv::Vec3b>(x, y);
+                            for(int i = 0; i < 3; i++)
+                                if (pointColor[i] > 0) pointColor[i]--;
+                            img2.at<cv::Vec3b>(x, y) = pointColor;
+                        }
+                    }
+                    for (int i = 0; i < maxPointData; i++) {
+                        if (pointData[i].x == 0 && pointData[i].y == 0) break;
+                        putPointXY(img2, pointData[i], sizeRate / maxX, cv::Scalar(255, 255, 255));
+                    }    
+                    img2.copyTo(img);
                     break; 
 	        	case 0xffffffff:
                     drv->stop();

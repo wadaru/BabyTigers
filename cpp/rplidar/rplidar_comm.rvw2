@@ -129,6 +129,9 @@
     <md:utspec md:id="rec_gmbh_constant_int32">
       <md:spec md:curr="int32" md:type="T"/>
     </md:utspec>
+    <md:utspec md:id="rec_gmbh_constant_bool">
+      <md:spec md:curr="bool" md:type="T"/>
+    </md:utspec>
     <md:utspec md:id="rec_gmbh_constant_float">
       <md:spec md:curr="float" md:type="T"/>
     </md:utspec>
@@ -282,7 +285,7 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__3_" md:name="Constant (3)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="4" md:varname="value">
+            <md:varExpr md:value="5" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -328,7 +331,7 @@
         </md:unit>
         <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__4_" md:name="Constant (4)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_int32" md:variantName="REC GmbH Constant">
           <md:inVarExprs>
-            <md:varExpr md:value="-90" md:varname="value">
+            <md:varExpr md:value="0" md:varname="value">
               <md:varProperty md:name="visible" md:value="false"/>
               <md:varProperty md:name="debug" md:value="true"/>
             </md:varExpr>
@@ -480,6 +483,34 @@
             </md:varExpr>
           </md:outVarExprs>
         </md:unit>
+        <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__7_" md:name="Constant (7)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_bool" md:variantName="REC GmbH Constant">
+          <md:inVarExprs>
+            <md:varExpr md:value="false" md:varname="value">
+              <md:varProperty md:name="visible" md:value="false"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+          <md:outVarExprs>
+            <md:varExpr md:varname="out">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:outVarExprs>
+        </md:unit>
+        <md:unit md:deviceInstanceName="Generic" md:id="actor_constant__8_" md:name="Constant (8)" md:type="REC GmbH Constant" md:utspec="rec_gmbh_constant_float" md:variantName="REC GmbH Constant">
+          <md:inVarExprs>
+            <md:varExpr md:value="0.000000" md:varname="value">
+              <md:varProperty md:name="visible" md:value="false"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:inVarExprs>
+          <md:outVarExprs>
+            <md:varExpr md:varname="out">
+              <md:varProperty md:name="visible" md:value="true"/>
+              <md:varProperty md:name="debug" md:value="true"/>
+            </md:varExpr>
+          </md:outVarExprs>
+        </md:unit>
       </md:units>
       <md:edges>
         <md:edge md:cons="1" md:delay="0" md:id="edge_1" md:prod="1">
@@ -517,6 +548,14 @@
         <md:edge md:cons="1" md:delay="0" md:id="edge_9" md:prod="1">
           <md:from md:con="phi" md:unit="actor_odometry"/>
           <md:to md:con="value" md:unit="actor_output_0_int6"/>
+        </md:edge>
+        <md:edge md:cons="1" md:delay="0" md:id="edge_10" md:prod="1">
+          <md:from md:con="out" md:unit="actor_constant__7_"/>
+          <md:to md:con="set" md:unit="actor_odometry"/>
+        </md:edge>
+        <md:edge md:cons="1" md:delay="0" md:id="edge_11" md:prod="1">
+          <md:from md:con="out" md:unit="actor_constant__8_"/>
+          <md:to md:con="vx_set" md:unit="actor_drive_system"/>
         </md:edge>
       </md:edges>
     </md:sdf>
@@ -642,23 +681,23 @@
         </md:unit>
       </md:units>
       <md:edges>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_10" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_12" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__1_2"/>
           <md:to md:con="value" md:unit="actor_output_0_int03"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_11" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_13" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__2_5"/>
           <md:to md:con="op2" md:unit="actor_greater__1_"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_12" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_14" md:prod="1">
           <md:from md:con="gr" md:unit="actor_greater__1_"/>
           <md:to md:con="new_value" md:unit="actor_checkflag4"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_13" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_15" md:prod="1">
           <md:from md:con="time" md:unit="actor_timer__1_"/>
           <md:to md:con="op1" md:unit="actor_greater__1_"/>
         </md:edge>
-        <md:edge md:cons="1" md:delay="0" md:id="edge_14" md:prod="1">
+        <md:edge md:cons="1" md:delay="0" md:id="edge_16" md:prod="1">
           <md:from md:con="out" md:unit="actor_constant__3_7"/>
           <md:to md:con="value" md:unit="actor_output_0_int16"/>
         </md:edge>
@@ -713,6 +752,8 @@
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int6" md:width="-1" md:x="618" md:y="204"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_output_0_int4" md:width="-1" md:x="618" md:y="90"/>
           <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_odometry" md:width="-1" md:x="330" md:y="102"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__7_" md:width="-1" md:x="222" md:y="150"/>
+          <md:unit md:height="-1" md:nameDisplay="hidden" md:unit="actor_constant__8_" md:width="-1" md:x="618" md:y="-114"/>
         </md:units>
         <md:nets>
           <md:net>
@@ -742,6 +783,12 @@
           <md:net>
             <md:edge md:edge="edge_9"/>
           </md:net>
+          <md:net>
+            <md:edge md:edge="edge_10"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_11"/>
+          </md:net>
         </md:nets>
         <md:texts>
           <md:text md:text="if you want to finish this program,&#xA;then set 1 (true)." md:x="390" md:y="276"/>
@@ -761,12 +808,6 @@
         </md:units>
         <md:nets>
           <md:net>
-            <md:edge md:edge="edge_10"/>
-          </md:net>
-          <md:net>
-            <md:edge md:edge="edge_11"/>
-          </md:net>
-          <md:net>
             <md:edge md:edge="edge_12"/>
           </md:net>
           <md:net>
@@ -774,6 +815,12 @@
           </md:net>
           <md:net>
             <md:edge md:edge="edge_14"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_15"/>
+          </md:net>
+          <md:net>
+            <md:edge md:edge="edge_16"/>
           </md:net>
         </md:nets>
         <md:texts/>
