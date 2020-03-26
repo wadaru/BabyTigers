@@ -340,7 +340,7 @@ void getAllData(cv::Mat img, rplidar_response_measurement_node_t nodes[], size_t
     }
 }
 
-float getLRFData(cv::Mat img, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
+float getLRFData(cv::Mat img, float robotX, float robotY, float robotPhi, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
     float angle, r, distance;
 
     distance = FLT_MAX;
@@ -348,19 +348,23 @@ printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
     putPointR(img, minDeg, 200, 100, cv::Scalar(0, 0, 255));
     putPointR(img, maxDeg, 200, 100, cv::Scalar(0, 0, 255));
     for (int pos = 0; pos < (int)count; pos++) {
-        angle = degPos(nodes[pos]); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
+        angle = deg180(degPos(nodes[pos]) - robotPhi); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
         if (minDeg <= angle && angle <= maxDeg) {
             r = (nodes[pos].distance_q2/4.0f);
             if (r != 0 && r < distance) distance = r;
-            // printf("minDeg %f, maxDeg %f, deg %f, dist: %f\n", minDeg, maxDeg, angle, r);
-            // angle = angle / 180.0 * 3.14159;
-            // r = (nodes[pos].distance_q2/4.0f);
-            // putLineR(img, angle, r, 0, 0, 10, cv::Scalar(0, 128, 0));
-            putPointR(img, angle, r, 50, cv::Scalar(0, 255, 0));
+            // putPointR(img, angle, r, 50, cv::Scalar(0, 255, 0));
+            cv::Point2f circleP;
+            circleP.x = cos(angle / 180.0 * PI) * r + robotX;
+            circleP.y = sin(angle / 180.0 * PI) * r + robotY;
+            putPointXY(img, circleP, 50, cv::Scalar(0, 255, 0));
         }
     }
     // view3Send[2] = (int)distance;
     return (float)distance;
+}
+
+float getLRFData(cv::Mat img, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
+    return getLRFData(img, 0, 0, 0, minDeg, maxDeg, nodes, count);
 }
 
 double lineRad(cv::Point2f line) {
@@ -396,7 +400,8 @@ bool checkInclude(double min1, double max1, double min2, double max2) {
 }
 
 bool checkSameLine(areaRectangle line1, areaRectangle line2) {
-    double radDiff = 5.0 / 180.0 * PI;
+    double radDiff = 3.0 / 180.0 * PI;
+    // return (fabs(lineRad(line1) - lineRad(line2)) <= radDiff) ;
     return ((fabs(lineRad(line1) - lineRad(line2)) <= radDiff) &&
         (checkInclude(line1.min.x, line1.max.x, line2.min.x, line2.max.x)) &&
         (checkInclude(line1.min.y, line1.max.y, line2.min.y, line2.max.y)));
@@ -406,10 +411,11 @@ bool checkSameLine(areaRectangle line1, areaRectangle line2) {
 void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
     float x, y, oldX = 0, oldY = 0;
     float leftAngle, leftR, rightAngle, rightR = 0; // , leftX, leftY;
-    cv::Point2f leftP, rightP, oldP;
+    cv::Point2f leftP, rightP, oldP, secondP;
     bool findFlag;
     int lineColor = 0;
-    const int threshold = 7;
+    const int threshold = 10;
+    int counter = 0;
 
     for (int pos = 0; pos < (int)count; pos++) {
         // at first, find the left edge that has some distance.
@@ -420,13 +426,15 @@ void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_mea
             if (leftR > 0) { // find the left edge
                 leftP.x = cos(leftAngle / 180.0 * PI) * leftR;
                 leftP.y = sin(leftAngle / 180.0 * PI) * leftR;
-                oldP = leftP;
+                oldP = secondP = leftP;
                 // 
                 // find the right edge
-                areaRectangle leftLine, rightLine;
+                areaRectangle leftLine, rightLine, secondLine, lastLine;
                 leftLine.min.x = rightLine.min.x = leftP.x;
                 leftLine.min.y = rightLine.min.y = leftP.y;
+                secondLine = leftLine;
                 int rightPos;
+                counter = 0;
                 for (rightPos = pos; rightPos < (int)count; rightPos++) {
                     rightAngle = degPos(nodes[rightPos]);
                     if (maxDeg < rightAngle) break;
@@ -441,21 +449,27 @@ void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_mea
                             // line1: left-oldP, line2: left-rightP
                             // check the same direction for line1 and line2.
                             if (!(checkSameLine(leftLine, rightLine))) break;
+                            lastLine = rightLine;
+                        } else {
+                            secondP = rightP;
+                            secondLine.max = rightP;
                         }
                         oldP = rightP;
+                        counter++;
                     } else {
                         break;
                     }
                 }
                 rightPos--;
-                if (rightPos > 0 && rightR > 0 && (rightPos - pos) > threshold && 
-                    leftAngle < maxDeg && rightAngle < maxDeg && 
-                    pos < (int)count - threshold - 1  && 
-                    rightPos < (int)count - threshold - 1) {
+                
+                if (rightR > 0 && counter > threshold && 
+                    leftAngle < maxDeg && rightAngle < maxDeg &&
+                    checkSameLine(secondLine, lastLine)) {
                     findFlag = true;
-                    pos = rightPos;
+                    pos = rightPos + 1;
                 }
                 if (findFlag) {
+                    rightP = oldP;
                     putLineXY(img, leftP, rightP, 3, colorData[lineColor]);
                     if (++lineColor > 8) lineColor = 0;
                     findFlag = false;
@@ -548,6 +562,18 @@ int main(int argc, const char * argv[]) {
                     getLRFData(img, minDeg, maxDeg, nodes, count);
                     recognizeLine(img, minDeg, maxDeg, nodes, count); 
                     break;
+                case 5: // make the map
+                    float robotX, robotY, robotPhi;
+                    sizeRate = 5000.0;
+                    openingAngle = view3Recv[4];
+                    angle = deg180(view3Recv[3]);
+                    robotX   = view3Recv[5];
+                    robotY   = view3Recv[6];
+                    robotPhi = view3Recv[7];
+                    minDeg = deg180(angle - openingAngle / 2.0);
+                    maxDeg = deg180(angle + openingAngle / 2.0);
+                    getLRFData(img, robotX, robotY, robotPhi, minDeg, maxDeg, nodes, count);
+                    break; 
 	        	case 0xffffffff:
                     drv->stop();
                     drv->stopMotor();
