@@ -186,11 +186,12 @@ void init_rplidar(int argc, const char * argv[]) {
 
     if (argc < 2) {
         print_usage(argc, argv);
-        exit(-1);
+        // exit(-1);
+        opt_com_path = "/dev/ttyUSB0";
+        // opt_com_baudrate = 115200;
+    } else {
+        opt_com_path = argv[1];
     }
-
-    opt_com_path = argv[1];
-
     if (argc > 2) opt_com_baudrate = strtoul(argv[2], NULL, 10);
     // create the driver instance
     drv = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
@@ -285,25 +286,33 @@ void init_rplidar(int argc, const char * argv[]) {
 }
 
 //
-// Unit is [mm].
-//
-// const float sizeRate = 10000.0;
+// sizeRate : size rate for image data.
+// if you set 1dot = 5cm, please set sizeRate = 50.0 * maxX;
 float sizeRate = 10000.0;
+
+// 
+// convert from real x-y coordinates to the dot x-y coordinates.
+// at the center of the image is (0, 0).
 float cvX(float x) { return maxX / 2 + x * maxX / sizeRate; }
 float cvY(float y) { return maxY / 2 + y * maxY / sizeRate; }
+
+//
+// convert from real x-y to dot x-y as the point type
 cv::Point2f cvP(cv::Point2f P) {
     cv::Point2f r;
     r.x = cvX(P.x);
     r.y = cvY(P.y);
     return r;
 }
-void putPointXY(cv::Mat img, cv::Point2f P, int size, cv::Scalar scalar) {
+
+//
+// put the square mark at point P on the img.
+// P is x-y code; 
+void putSquareXY(cv::Mat img, cv::Point2f P, int size, cv::Scalar scalar) {
     cv::Point2f startP, endP, sizeP;
     sizeP.x = size * maxX / sizeRate / 2;
     sizeP.y = size * maxY / sizeRate / 2;
-/*    startP = cvP(P) - sizeP;
-    endP   = cvP(P) + sizeP;
-*/
+
     startP.x = cvX(P.x) - size * maxX / sizeRate / 2;
     startP.y = cvY(P.y) - size * maxY / sizeRate / 2;
     endP.x   = cvX(P.x) + size * maxX / sizeRate / 2;
@@ -311,19 +320,24 @@ void putPointXY(cv::Mat img, cv::Point2f P, int size, cv::Scalar scalar) {
 
     cv::rectangle(img, startP, endP, scalar);
 }
+
 //
-// R is the radius. angle is the degree.
-//
-void putPointR(cv::Mat img, float angle, float r, int size, cv::Scalar scalar) {
+// put the square mark at P (P is pole with R and angle) on img.
+// R is the radius, and angle is the degree.
+void putSquareR(cv::Mat img, float angle, float r, int size, cv::Scalar scalar) {
     cv::Point2f circleP;
     circleP.x = cos(angle / 180.0 * PI) * r;
     circleP.y = sin(angle / 180.0 * PI) * r;
-    putPointXY(img, circleP, size, scalar);
+    putSquareXY(img, circleP, size, scalar);
 }
 
+//
+// draw the line between P1 and P2 on the img.
 void putLineXY(cv::Mat img, cv::Point2f P1, cv::Point2f P2, int size, cv::Scalar scalar) {
     cv::line(img, cvP(P1), cvP(P2), scalar, size,CV_AA);
 }
+
+// draw the line using pole coordinates.
 void putLineR(cv::Mat img, float angle1, float r1, float angle2, float r2, int size, cv::Scalar scalar) {
     cv::Point2f p1, p2;
     p1.x = cos(angle1 / 180.0 * PI) * r1;
@@ -333,21 +347,24 @@ void putLineR(cv::Mat img, float angle1, float r1, float angle2, float r2, int s
     putLineXY(img, p1, p2, size, scalar);
 }
 
+//
+// draw the circle at point P on the img.
 void putCircle(cv::Mat img, cv::Point2f P, int size, cv::Scalar scalar) {
     cv::circle(img, cvP(P), size * maxX / sizeRate, scalar, size * maxX / sizeRate / 5, CV_AA);
 }
 
+// get the points data from LRF.
 void getAllData(cv::Mat img, rplidar_response_measurement_node_t nodes[], size_t count){
     // draw the distance information
     float r, angle;
     cv::Point2f p;
     for (int pos = 0; pos < (int)count; pos++) {
-        angle = degPos(nodes[pos]); // (deg180((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle); // / 180.0 * 3.14159;
+        angle = degPos(nodes[pos]);
         r = (nodes[pos].distance_q2/4.0f);
         p.x = cos(angle) * r;
         p.y = sin(angle) * r;
         putLineXY(img, p, cv::Point2f(0, 0), 10, cv::Scalar(0, 128, 0));
-        putPointXY(img, p, 50, cv::Scalar(0, 255, 0));
+        putSquareXY(img, p, 50, cv::Scalar(0, 255, 0));
         // printf("%d/%d, r: %f, angle %f (%f, %f )\n", pos, (int)count, r, angle, x, y);
     }
 }
@@ -361,21 +378,21 @@ printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
     cv::Point2f p;
     p.x = cos((minDeg - robotPhi)/ 180.0 * PI) * 250.0 + 0.0;
     p.y = sin((minDeg - robotPhi)/ 180.0 * PI) * 250.0;
-    putPointXY(img, p, 100, cv::Scalar(0, 0, 255));
+    putSquareXY(img, p, 100, cv::Scalar(0, 0, 255));
     p.x = cos((maxDeg - robotPhi) / 180.0 * PI) * 250.0 + 0.0;
     p.y = sin((maxDeg - robotPhi) / 180.0 * PI) * 250.0;
-    putPointXY(img, p, 100, cv::Scalar(64, 64, 255));
+    putSquareXY(img, p, 100, cv::Scalar(64, 64, 255));
     putCircle(img, cv::Point2f(0, 0), 100, cv::Scalar(128, 128, 255));
     for (int pos = 0; pos < (int)count; pos++) {
         angle = deg180(degPos(nodes[pos]) - robotPhi); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
         if (minDeg <= angle && angle <= maxDeg) {
             r = (nodes[pos].distance_q2/4.0f);
             if (r != 0 && r < distance) distance = r;
-            // putPointR(img, angle, r, 50, cv::Scalar(0, 255, 0));
+            // putSquareR(img, angle, r, 50, cv::Scalar(0, 255, 0));
             cv::Point2f circleP;
             circleP.x = cos(angle / 180.0 * PI) * r + robotX;
             circleP.y = sin(angle / 180.0 * PI) * r + robotY;
-            putPointXY(img, circleP, 50, cv::Scalar(0, 255, 0));
+            putSquareXY(img, circleP, 50, cv::Scalar(0, 255, 0));
             if (circleP.x !=0 && circleP.y !=0 ) {
                 pointData[pointNo].x = circleP.x;
                 pointData[pointNo++].y = circleP.y;
@@ -425,7 +442,7 @@ bool checkInclude(double min1, double max1, double min2, double max2) {
 }
 
 bool checkSameLine(areaRectangle line1, areaRectangle line2) {
-    double radDiff = 3.0 / 180.0 * PI;
+    double radDiff = 5.0 / 180.0 * PI;
     // return (fabs(lineRad(line1) - lineRad(line2)) <= radDiff) ;
     return ((fabs(lineRad(line1) - lineRad(line2)) <= radDiff) &&
         (checkInclude(line1.min.x, line1.max.x, line2.min.x, line2.max.x)) &&
@@ -436,10 +453,10 @@ bool checkSameLine(areaRectangle line1, areaRectangle line2) {
 void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
     float x, y, oldX = 0, oldY = 0;
     float leftAngle, leftR, rightAngle, rightR = 0; // , leftX, leftY;
-    cv::Point2f leftP, rightP, oldP, secondP;
+    cv::Point2f leftP, rightP, oldP, old2P, secondP;
     bool findFlag;
     int lineColor = 0;
-    const int threshold = 10;
+    const int threshold = 5;
     int counter = 0;
 
     for (int pos = 0; pos < (int)count; pos++) {
@@ -451,7 +468,7 @@ void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_mea
             if (leftR > 0) { // find the left edge
                 leftP.x = cos(leftAngle / 180.0 * PI) * leftR;
                 leftP.y = sin(leftAngle / 180.0 * PI) * leftR;
-                oldP = secondP = leftP;
+                oldP = old2P = secondP = leftP;
                 // 
                 // find the right edge
                 areaRectangle leftLine, rightLine, secondLine, lastLine;
@@ -479,16 +496,18 @@ void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_mea
                             secondP = rightP;
                             secondLine.max = rightP;
                         }
+                        old2P = oldP;
                         oldP = rightP;
                         counter++;
                     } else {
-                        break;
+                        // break;
+                        // skip
                     }
                 }
                 rightPos--;
                 
                 if (rightR > 0 && counter > threshold && 
-                    leftAngle < maxDeg && rightAngle < maxDeg &&
+                    leftAngle < maxDeg &&
                     checkSameLine(secondLine, lastLine)) {
                     findFlag = true;
                     pos = rightPos + 1;
@@ -604,7 +623,7 @@ int main(int argc, const char * argv[]) {
                 case 5: // make the map
                     float robotX, robotY, robotPhi;
                     int pointNo;
-                    sizeRate = 5000.0;
+                    sizeRate = 50.0 * maxX;
                     openingAngle = view3Recv[4];
                     angle = deg180(view3Recv[3]);
                     robotX   = view3Recv[5];
@@ -623,7 +642,7 @@ int main(int argc, const char * argv[]) {
                     }
                     for (int i = 0; i < maxPointData; i++) {
                         if (pointData[i].x == 0 && pointData[i].y == 0) break;
-                        putPointXY(img2, pointData[i], sizeRate / maxX, cv::Scalar(255, 255, 255));
+                        putSquareXY(img2, pointData[i], sizeRate / maxX, cv::Scalar(255, 255, 255));
                     }    
                     img2.copyTo(img);
                     break; 
