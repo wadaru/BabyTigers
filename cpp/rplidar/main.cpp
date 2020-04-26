@@ -372,6 +372,7 @@ void getAllData(cv::Mat img, rplidar_response_measurement_node_t nodes[], size_t
 float getLRFData(cv::Mat img, float robotX, float robotY, float robotPhi, float minDeg, float maxDeg, rplidar_response_measurement_node_t nodes[], size_t count) {
     float angle, r, distance;
     int pointNo = 0;
+    bool rotFlag = (minDeg < maxDeg);
 
     distance = FLT_MAX;
 printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
@@ -385,7 +386,8 @@ printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
     putCircle(img, cv::Point2f(0, 0), 100, cv::Scalar(128, 128, 255));
     for (int pos = 0; pos < (int)count; pos++) {
         angle = deg180(degPos(nodes[pos]) - robotPhi); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
-        if (minDeg <= angle && angle <= maxDeg) {
+        if ((rotFlag && (minDeg <= angle && angle <= maxDeg)) ||  
+            (!rotFlag && (angle <= maxDeg || minDeg <= angle))) {
             r = (nodes[pos].distance_q2/4.0f);
             if (r != 0 && r < distance) distance = r;
             // putSquareR(img, angle, r, 50, cv::Scalar(0, 255, 0));
@@ -397,6 +399,7 @@ printf("minDeg: %f, maxDeg: %f \n", minDeg, maxDeg);
                 pointData[pointNo].x = circleP.x;
                 pointData[pointNo++].y = circleP.y;
             }
+// printf("minDeg %f, angle %f, maxDeg %f, r: %f\n", minDeg, angle, maxDeg, r);
         }
     }
     pointData[pointNo].x = 0;
@@ -458,11 +461,15 @@ void recognizeLine(cv::Mat img, float minDeg, float maxDeg, rplidar_response_mea
     int lineColor = 0;
     const int threshold = 5;
     int counter = 0;
+    bool rotFlag = (minDeg < maxDeg);
 
     for (int pos = 0; pos < (int)count; pos++) {
         // at first, find the left edge that has some distance.
         leftAngle = degPos(nodes[pos]); // deg180(((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f) + offsetAngle);
-        if (minDeg <= leftAngle && leftAngle <= maxDeg) {
+        // if (minDeg <= leftAngle && leftAngle <= maxDeg) {
+        if ((rotFlag && (minDeg <= leftAngle && leftAngle <= maxDeg)) ||
+            (!rotFlag && (leftAngle <= maxDeg || minDeg <= leftAngle))) {
+
             leftR = (nodes[pos].distance_q2/4.0f);
             findFlag = false;
             if (leftR > 0) { // find the left edge
@@ -575,7 +582,7 @@ int main(int argc, const char * argv[]) {
 
             int result = 0;
 	        count = _countof(nodes);
-	        count = 360;
+	        count = 360 * 2;
 
 	        if (IS_FAIL(rplidar_capture(drv, nodes, count))) {
                 fprintf(stderr, "Error, cannot grab scan data.\n");
@@ -583,8 +590,8 @@ int main(int argc, const char * argv[]) {
             }
             img = cv::Mat::zeros(maxX, maxY, CV_8UC3);
             cv::Point2f robot;
-            robot.x = -cos(laserPhi / 180.0 * PI) * laserR;
-            robot.y = -sin(laserPhi / 180.0 * PI) * laserR;
+            robot.x = -cos((laserPhi + offsetAngle)/ 180.0 * PI) * laserR;
+            robot.y = -sin((laserPhi + offsetAngle)/ 180.0 * PI) * laserR;
             putCircle(img, robot, 250, cv::Scalar(128, 128, 128));
             sizeRate = 10000.0;
 
