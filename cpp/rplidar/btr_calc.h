@@ -43,10 +43,6 @@
 #include <opencv/cvaux.h>
 #include <opencv/cxcore.h>
 #include <math.h>
-#include <time.h>
-
-
-#include <btr_calc.cpp>
 
 #ifndef _countof
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
@@ -55,6 +51,16 @@
 const float laserR = 150.0;
 const float laserPhi = 0.0;
 
+struct areaRectangle {
+	cv::Point2f min;
+	cv::Point2f max;
+};
+
+struct areaBox {
+	cv::Point2f p0, p1, p2, p3;
+};
+
+const float PI = 3.14159;
 #include <unistd.h>
 static inline void delay(_word_size_t ms){
     while (ms >= 1000){
@@ -80,14 +86,18 @@ int offsetAngle;
 const int maxX = 500;
 const int maxY = 500;
 
+
+const cv::Scalar colorData[] = 
+{cv::Scalar(  0,   0, 255), cv::Scalar(255,   0,   0), cv::Scalar(255,   0, 255),
+ cv::Scalar(  0, 255,   0), cv::Scalar(  0, 255, 255), cv::Scalar(255, 255,   0),
+ cv::Scalar(255, 255, 255)};
+
 RPlidarDriver * drv; //  = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
 
-/*
 struct pointHistory {
     cv::Point2f p;
     int ttl;
 };
-*/
 
 const int maxPointData = 10000;
 cv::Point2f pointData[maxPointData];
@@ -618,8 +628,7 @@ int main(int argc, const char * argv[]) {
                     recognizeLine(img, minDeg, maxDeg, nodes, count); 
                     break;
                 case 5: // make the map
-		    {
-		    float robotX, robotY, robotPhi;
+                    float robotX, robotY, robotPhi;
                     int pointNo;
                     sizeRate = 50.0 * maxX;
                     openingAngle = view3Recv[4];
@@ -643,31 +652,8 @@ int main(int argc, const char * argv[]) {
                         putSquareXY(img2, pointData[i], sizeRate / maxX, cv::Scalar(255, 255, 255));
                     }    
                     img2.copyTo(img);
-		    }
-		    break; 
-
-		case 6: // save data to file.
-		    {
-		    FILE *FP;
-		    time_t timer = time(NULL);
-		    if ((FP = fopen("lrf_data.txt", "a")) == NULL) {
-			    printf("file output error!\n");
-			    exit(EXIT_FAILURE);
-		    }
-	    	    fprintf(FP, "%ld, %.1lf, %.1lf, %.1lf\n", timer, ((signed long)view3Recv[5]) / 10.0, ((signed long)view3Recv[6]) / 10.0, ((signed long)view3Recv[7]) / 10.0);
-		    char outputFormat[] = "%f,%.1f,";
-
-		    for (int pos = 0; pos < (int)count; pos++) {
-			    if ((pos % 32) == 31) outputFormat[7] = '\n';
-			    else outputFormat[7] = ',';
-			    fprintf(FP, outputFormat, ((nodes[pos].angle_q6_checkbit >> RPLIDAR_RESP_MEASUREMENT_ANGLE_SHIFT)/64.0f), (nodes[pos].distance_q2/4.0f) / 10.0);
-		    }
-		    fprintf(FP, "%.1f\n", -1.0);
-		    fclose(FP);
-	    	    }
-	            break;
-
-		case 0xffffffff:
+                    break; 
+	        	case 0xffffffff:
                     drv->stop();
                     drv->stopMotor();
 
