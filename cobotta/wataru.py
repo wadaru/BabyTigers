@@ -70,17 +70,23 @@ if __name__ == '__main__':
       recvPORT = 9182
       sendADDRESS = "127.0.1.1"
       # recvADDRESS = "127.0.1.1"
-      recvADDRESS = "192.168.11.60" # this machine's ip address.
+      # recvADDRESS = "192.168.11.60" # this machine's ip address.
+      recvADDRESS = "10.42.0.1"
 
     print("sendADD:", sendADDRESS, ", sendPORT:", sendPORT)
     print("recvADD:", recvADDRESS, ", recvPORT:", recvPORT)
     udp = udp_comm.udpcomm(sendADDRESS, sendPORT, recvADDRESS, recvPORT)
+    # joint_packing_recv = [0 for i in range(1, 7)]
+    # oldData = joint_packing_recv
     while True:
       old = udp.view3Recv[0]
       udp.receiver()
       if (udp.view3Recv[0] == 0):
         break
+      # joint_packing_recv = [udp.view3Recv[i] for i in range(1, 7)]
       if (old != udp.view3Recv[0]):
+      # if (oldData != joint_packing_recv):
+        print("time = ", udp.view3Recv[0])
         joint_packing_recv = [udp.view3Recv[i] for i in range(1, 7)]
         print("joint_packing_recv = ", joint_packing_recv)
         joints = joint_packing_recv
@@ -92,6 +98,7 @@ if __name__ == '__main__':
         gripper_move(gripper_client, gripper_width,
                      gripper_parallel_speed, gripper_parallel_effort)
         arm_move(move_group, joints)
-      time.sleep(0.1)
+        oldData = joint_packing_recv
+      time.sleep(0.001)
     udp.closer()
     print("Bye...")
