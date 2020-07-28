@@ -5,6 +5,11 @@ import rospy
 import sys
 import math
 import geometry_msgs.msg
+from sensor_msgs.msg import JointState
+
+joints_name = ["joint_1", "joint_2",
+               "joint_3", "joint_4", "joint_5", "joint_6"]
+jointData = []
 
 def main():
     rospy.init_node("packing_pose")
@@ -31,7 +36,11 @@ def main():
 
     target_pose_arm = geometry_msgs.msg.Pose()
 
-    for theta in range(0, 360 - 90, 20):
+    startDeg = 0
+    endDeg = 360
+    stepDeg = 20
+    counter = 0
+    for theta in range(startDeg, endDeg, stepDeg):
         x = math.sin(math.radians(theta)) / 15 + 0.1
         y = math.cos(math.radians(theta)) / 15 + 0.1
         target_pose_arm.position.x = arm_initial_pose.position.x + x
@@ -55,7 +64,25 @@ def main():
 
         arm.go()
 
-    rospy.sleep(0)
+        while True:
+            joint_state = rospy.wait_for_message("/cobotta/joint_states", JointState)
+            if (joint_state.name == joints_name):
+                print(joint_state.position)
+                jointData.append(joint_state.position)
+                counter = counter + 6
+                break
+
+        rospy.sleep(0)
+    print(jointData)
+    print(counter)
+
+    r = rospy.Rate(5)
+    for i in range((counter / 6) - 1):
+        pose_radian = jointData[i]
+        arm.go(pose_radian, wait=False)
+        # rospy.sleep()
+        r.sleep()
+    arm.stop()
 
 if __name__ == '__main__':
     try:
