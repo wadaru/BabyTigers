@@ -38,11 +38,11 @@ def main():
 
     startDeg = 0
     endDeg = 360
-    stepDeg = 20
+    stepDeg = 21
     counter = 0
     for theta in range(startDeg, endDeg, stepDeg):
-        x = math.sin(math.radians(theta)) / 15 + 0.1
-        y = math.cos(math.radians(theta)) / 15 + 0.1
+        x = math.sin(math.radians(theta)) / 12 + 0.1
+        y = math.cos(math.radians(theta)) / 12 + 0.1
         target_pose_arm.position.x = arm_initial_pose.position.x + x
         target_pose_arm.position.y = arm_initial_pose.position.y
         target_pose_arm.position.z = arm_initial_pose.position.z + y
@@ -75,13 +75,16 @@ def main():
         rospy.sleep(0)
     print(jointData)
     print(counter)
+    rospy.sleep(3)
 
-    r = rospy.Rate(5)
-    for i in range((counter / 6) - 1):
-        pose_radian = jointData[i]
-        arm.go(pose_radian, wait=False)
-        # rospy.sleep()
-        r.sleep()
+    # r = rospy.Rate(1.3)
+    for j in range(3):
+        for i in range((counter / 6) - 1):
+            pose_radian = jointData[i]
+            print(i,": ", pose_radian)
+            arm.go(pose_radian, wait=True)
+            # rospy.sleep()
+            # r.sleep()
     arm.stop()
 
 if __name__ == '__main__':
