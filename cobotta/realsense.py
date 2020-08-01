@@ -17,7 +17,7 @@ def get_realsense_data(data):
     findX = data.data[0]
     findY = data.data[1]
     targetDistance = data.data[2]
-    print("findX = ", findX, ", findY = ", findY, ", target = ", targetDistance)
+    # print("findX = ", findX, ", findY = ", findY, ", target = ", targetDistance)
 
 def main():
     global findX, findY, targetDistance
