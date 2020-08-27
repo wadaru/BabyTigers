@@ -100,9 +100,15 @@ class udpcomm():
 # ROS for robotino
 # 
 def setVelocity(data):
-    global velocityData
+    global velocityData, robViewMode
     velocityData = data
+    robViewMode = 0
     # print("velocityData:", velocityData.data[0])
+def setPosition(data):
+    global positionDriver, robViewMode
+    positionDriver = data
+    robViewMode = 1
+    # print("setPosition:", positionDriver.position.x)
 #
 # main
 #
@@ -125,14 +131,23 @@ if __name__ == '__main__':
 
   rospy.init_node('robotino')
   rospy.Subscriber('robotino/velocity', Float32MultiArray, setVelocity)
+  rospy.Subscriber('robotino/positionDriver', Pose, setPosition)
   # pub01 = rospy.Publisher('odometry', Float32MultiArray, queue_size = 10)
   pub01 = rospy.Publisher('robotino/odometry', Pose, queue_size = 10)
-  pub02 = rospy.Publisher('robotino/bumper', Bool, queue_size = 10)
+  pub02 = rospy.Publisher('robotino/checkFlag', Bool, queue_size = 10)
   pub03 = rospy.Publisher('robotino/getVelocity', Float32MultiArray, queue_size = 10)
   rate = rospy.Rate(10)
 
   velocityData = Float32MultiArray()
   velocityData.data = (0, 0, 0)
+  positionDriver = Pose()
+  positionDriver.position.x = 0
+  positionDriver.position.y = 0
+  positionDriver.position.z = 0
+  positionDriver.orientation = 0
+  robViewMode = 0
+  oldMode = 0
+  checkFlag = False
 
   # while True:
   while not rospy.is_shutdown():
@@ -143,28 +158,40 @@ if __name__ == '__main__':
     odometry = Pose()
     odometry.position.x = float(udp.view3Recv[1]) / 10
     odometry.position.y = float(udp.view3Recv[2]) / 10
-    odometry.orientation = (float(udp.view3Recv[3]) / 10)
-    bumper = Bool()
-    bumper.data =(bool(udp.view3Recv[4]))
+    odometry.orientation = float(udp.view3Recv[3]) / 10
+    checkFlag = Bool()
+    checkFlag.data =(bool(udp.view3Recv[4]))
     velocity = Float32MultiArray()
-    velocity.data = (float(udp.view3Recv[5]) / 10, float(udp.view3Recv[6]) / 10, float(udp.view3Recv[6]) / 10)
-    rospy.loginfo(odometry)
-    rospy.loginfo(bumper)
-    rospy.loginfo(velocity)
+    velocity.data = (float(udp.view3Recv[5]) / 10, float(udp.view3Recv[6]) / 10, float(udp.view3Recv[7]) / 10)
+    # rospy.loginfo(odometry)
+    # rospy.loginfo(checkFlag)
+    # rospy.loginfo(velocity)
     pub01.publish(odometry)
-    pub02.publish(bumper)
+    pub02.publish(checkFlag)
     pub03.publish(velocity)
     # get robot command
-    udp.view3Send[ 4] = int(velocityData.data[0])
-    udp.view3Send[ 8] = int(velocityData.data[1])
-    udp.view3Send[12] = int(velocityData.data[2])
-    # udp.view3Send[ 4] = velocity.data[0] % 256
-    # udp.view3Send[ 5] = velocity
-    print(udp.view3Send[4])
+    udp.view3Send[ 4] = robViewMode # mode number
+    if (robViewMode == 0): # omniDrive
+      udp.view3Send[ 8] = int(velocityData.data[0])
+      udp.view3Send[12] = int(velocityData.data[1])
+      udp.view3Send[16] = int(velocityData.data[2])
+    elif (robViewMode == 1): # positionDrive
+      # DriveMode = 3, Turn|Drive|Turn Nonholonomic
+      udp.view3Send[ 8] = int(positionDriver.position.x)
+      udp.view3Send[12] = int(positionDriver.position.y)
+      udp.view3Send[16] = int(positionDriver.orientation.z)
+
+    if (robViewMode != oldMode):
+      print("mode change from ", oldMode, " to ", robViewMode)
+      oldMode = robViewMode
 
     udp.sender()
     # time.sleep(0.1)
     rate.sleep()
+    if (checkFlag.data == True):
+      robViewMode = 0
+      velocity.data = (0, 0, 0)
+
   udp.closer()
 
 
