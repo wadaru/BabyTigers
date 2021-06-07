@@ -10,7 +10,7 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import Pose2D
 from rcll_btr_msgs.srv import SetOdometry, SetPosition, SetVelocity
 
-sendSeq = 0
+sendSeq = 10
 
 def setVelocity(velocity):
     global sendSeq
@@ -22,9 +22,8 @@ def setVelocity(velocity):
         sendDataHeader = Header()
         sendDataPose = Pose2D()
         sendDataHeader.seq = sendSeq
-        sendDataHeader.stamp.secs = sendSeq
-        sendDataHeader.stamp.nsecs = 0
-        sendDataHeader.frame_id = "header"
+        sendDataHeader.stamp = rospy.Time.now()
+        sendDataHeader.frame_id = "sin02"
         sendDataPose = velocity
         resp = set_Velocity(sendDataHeader, sendDataPose)
         return resp
@@ -32,7 +31,7 @@ def setVelocity(velocity):
         print "Service call failed: %s"%e
 
 def main():
-    # rospy.init_node("babyTigers")
+    rospy.init_node("babyTigers")
     # pub = rospy.Publisher('robotino/velocity', Float32MultiArray, queue_size = 10)
     # rate = rospy.Rate(10)
 

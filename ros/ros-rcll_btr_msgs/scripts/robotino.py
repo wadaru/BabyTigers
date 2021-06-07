@@ -4,12 +4,11 @@ import time
 import sys
 import rospy
 import udpcomm
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, PoseWithCovariance, Point, Quaternion
 from socket import socket, AF_INET, SOCK_DGRAM
-from std_msgs.msg import Float32
-from std_msgs.msg import Float32MultiArray
-from std_msgs.msg import Bool
+from std_msgs.msg import Float32, Float32MultiArray, Bool, Header
 from std_srvs.srv import SetBool, SetBoolResponse
+from nav_msgs.msg import Odometry
 import rcll_ros_msgs
 from rcll_btr_msgs.srv import SetOdometry, SetPosition, SetVelocity
 #
@@ -48,17 +47,19 @@ def setVelocity(data):
 
 def setPosition(data):
     global positionDriver, robViewMode
-    resp = SetBoolResponse()
+    resp = SetPosition()
     positionDriver = data
     robViewMode = 2
     udp.view3Send[ 4] = robViewMode # mode number
-    udp.view3Send[ 8] = int(positionDriver.position.x)
-    udp.view3Send[12] = int(positionDriver.position.y)
-    udp.view3Send[16] = int(positionDriver.orientation.z)
+    udp.view3Send[ 8] = int(positionDriver.pose.x)
+    udp.view3Send[12] = int(positionDriver.pose.y)
+    udp.view3Send[16] = int(positionDriver.pose.theta)
 
+    print("goToPosition:", positionDriver.pose)
+    print(udp.view3Send[ 8])
     sendRobView()
-    resp.success = True
-    return resp
+    resp.ok = True
+    return [resp.ok, ""]
     # print("setPosition:", positionDriver.position.x)
 
 def setOdometry(data):
@@ -100,7 +101,7 @@ if __name__ == '__main__':
   srv02 = rospy.Service('rvw2/positionDriver', SetPosition, setPosition)
   srv03 = rospy.Service('rvw2/setOdometry', SetOdometry, setOdometry)
   # pub01 = rospy.Publisher('odometry', Float32MultiArray, queue_size = 10)
-  pub01 = rospy.Publisher('robotino/odometry', Pose, queue_size = 10)
+  pub01 = rospy.Publisher('robotino/odometry', Odometry, queue_size = 10)
   pub02 = rospy.Publisher('robotino/checkFlag', Bool, queue_size = 10)
   pub03 = rospy.Publisher('robotino/getVelocity', Float32MultiArray, queue_size = 10)
   rate = rospy.Rate(10)
@@ -126,10 +127,28 @@ if __name__ == '__main__':
     # odometry = Float32MultiArray()
     # odometry.data = (float(udp.view3Recv[1]) / 10, float(udp.view3Recv[2]) / 10, float(udp.view3Recv[3]) / 10)
     checkFlag = float(udp.view3Recv[1])
-    getOdometry = Pose()
-    getOdometry.position.x = float(udp.view3Recv[2]) / 10
-    getOdometry.position.y = float(udp.view3Recv[3]) / 10
-    getOdometry.orientation.z = float(udp.view3Recv[4]) / 10
+    getOdometry = Odometry()
+    poseWithCovariance = PoseWithCovariance()
+    point = Point()
+    quaternion = Quaternion()
+    pose = Pose()
+    header = Header()
+    point.x = float(udp.view3Recv[2]) / 10
+    point.y = float(udp.view3Recv[3]) / 10
+    point.z = float(udp.view3Recv[4]) / 10
+    quaternion.x = 0
+    quaternion.y = 0
+    quaternion.z = 0
+    quaternion.w = 0
+    pose.position = point
+    pose.orientation = quaternion
+    poseWithCovariance.pose = pose
+    poseWithCovariance.covariance = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    header.seq = 1
+    header.stamp = rospy.Time.now()
+    header.frame_id = "odometry"
+    getOdometry.header = header
+    getOdometry.pose = poseWithCovariance
     velocity = Float32MultiArray()
     velocity.data = (float(udp.view3Recv[5]) / 10, float(udp.view3Recv[6]) / 10, float(udp.view3Recv[7]) / 10)
 
