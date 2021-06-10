@@ -23,18 +23,18 @@ def getResponse(value):
     return
 
 def sendRobView():
-    rovViewMode = udp.view3Send[4]
+    rovViewMode = udp.view3Send[1]
     
     # set mode = 0 and wait for ack(!=0) from RobView.
-    udp.view3Send[4] = 0
+    udp.view3Send[1] = 0
     getResponse(0)
 
     # send command with mode
-    udp.view3Send[4] = robViewMode
+    udp.view3Send[1] = robViewMode
     getResponse(1)
 
     # command finished
-    udp.view3Send[4] = 0
+    udp.view3Send[1] = 0
     getResponse(0)
 
     return udp.view3Recv[1]
@@ -45,10 +45,10 @@ def setVelocity(data):
     resp = SetVelocity()
     velocityData = data
     robViewMode = 1
-    udp.view3Send[ 4] = robViewMode # mode number
-    udp.view3Send[ 8] = int(velocityData.pose.x)
-    udp.view3Send[12] = int(velocityData.pose.y)
-    udp.view3Send[16] = int(velocityData.pose.theta)
+    udp.view3Send[1] = robViewMode # mode number
+    udp.view3Send[2] = int(velocityData.pose.x)
+    udp.view3Send[3] = int(velocityData.pose.y)
+    udp.view3Send[4] = int(velocityData.pose.theta)
 
     print("header:", data.header)
     print("velocity data:", data.pose.x, data.pose.y, data.pose.theta)
@@ -61,13 +61,13 @@ def setPosition(data):
     resp = SetPosition()
     positionDriver = data
     robViewMode = 2
-    udp.view3Send[ 4] = robViewMode # mode number
-    udp.view3Send[ 8] = int(positionDriver.pose.x)
-    udp.view3Send[12] = int(positionDriver.pose.y)
-    udp.view3Send[16] = int(positionDriver.pose.theta)
+    udp.view3Send[1] = robViewMode # mode number
+    udp.view3Send[2] = int(positionDriver.pose.x)
+    udp.view3Send[3] = int(positionDriver.pose.y)
+    udp.view3Send[4] = int(positionDriver.pose.theta)
 
     print("goToPosition:", positionDriver.pose)
-    print(udp.view3Send[ 8])
+    print(udp.view3Send[2])
     resp.ok = (sendRobView() == 1)
     return [resp.ok, ""]
     # print("setPosition:", positionDriver.position.x)
@@ -77,10 +77,10 @@ def setOdometry(data):
     resp = SetBoolResponse()
     odometryData = data
     robViewMode = 3
-    udp.view3Send[ 4] = robViewMode # mode number
-    udp.view3Send[ 8] = int(odometryData.position.x)
-    udp.view3Send[12] = int(odometryData.position.y)
-    udp.view3Send[16] = int(odometryData.orientation.z)
+    udp.view3Send[1] = robViewMode # mode number
+    udp.view3Send[2] = int(odometryData.position.x)
+    udp.view3Send[3] = int(odometryData.position.y)
+    udp.view3Send[4] = int(odometryData.orientation.z)
 
     resp.ok = (sendRobView() == 1)
     return [resp.ok, ""]
@@ -126,7 +126,7 @@ if __name__ == '__main__':
   oldMode = 0
   checkFlag = 0
 
-  udp.view3Send[ 4] = robViewMode
+  udp.view3Send[1] = robViewMode
   udp.sender()
 
   # while True:
