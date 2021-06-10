@@ -14,18 +14,30 @@ from rcll_btr_msgs.srv import SetOdometry, SetPosition, SetVelocity
 #
 # ROS for robotino
 # 
-def sendRobView():
-    global checkFlag
-    udp.sender()
-    checkFlag = 0
-    while checkFlag == 0:
+
+def getResponse(value):
+    while float(udp.view3Recv[1]) == value:
         udp.receiver()
-        checkFlag = float(udp.view3Recv[1])
+        udp.sender()
         rate.sleep()
-    robViewMode = 0
-    udp.view3Send[ 4] = robViewMode
-    udp.sender()
-    rate.sleep()
+    return
+
+def sendRobView():
+    rovViewMode = udp.view3Send[4]
+    
+    # set mode = 0 and wait for ack(!=0) from RobView.
+    udp.view3Send[4] = 0
+    getResponse(0)
+
+    # send command with mode
+    udp.view3Send[4] = robViewMode
+    getResponse(1)
+
+    # command finished
+    udp.view3Send[4] = 0
+    getResponse(0)
+
+    return udp.view3Recv[1]
 
 def setVelocity(data):
     global velocityData, robViewMode
@@ -40,8 +52,7 @@ def setVelocity(data):
 
     print("header:", data.header)
     print("velocity data:", data.pose.x, data.pose.y, data.pose.theta)
-    sendRobView()
-    resp.ok = True
+    resp.ok = (sendRobView() == 1)
     # return resp
     return [resp.ok, ""]
 
@@ -57,8 +68,7 @@ def setPosition(data):
 
     print("goToPosition:", positionDriver.pose)
     print(udp.view3Send[ 8])
-    sendRobView()
-    resp.ok = True
+    resp.ok = (sendRobView() == 1)
     return [resp.ok, ""]
     # print("setPosition:", positionDriver.position.x)
 
@@ -72,9 +82,8 @@ def setOdometry(data):
     udp.view3Send[12] = int(odometryData.position.y)
     udp.view3Send[16] = int(odometryData.orientation.z)
 
-    udp.sendRobView()
-    resp.success = True
-    return resp
+    resp.ok = (sendRobView() == 1)
+    return [resp.ok, ""]
 
 #
 # main
@@ -166,10 +175,10 @@ if __name__ == '__main__':
     udp.sender()
     # time.sleep(0.1)
     rate.sleep()
-    if (checkFlag == 1):
-      robViewMode = 0
-      # velocity.data = (0, 0, 0)
-      velocityData.pose = [0, 0, 0]
+    # if (checkFlag == 1):
+    #   robViewMode = 0
+    #   # velocity.data = (0, 0, 0)
+    #   velocityData.pose = [0, 0, 0]
 
   udp.closer()
 
