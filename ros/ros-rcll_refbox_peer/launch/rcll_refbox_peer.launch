@@ -1,0 +1,33 @@
+<launch>
+	<arg name="num_robots" />
+
+	<arg name="team_name" />
+	<arg name="team_color" default="CYAN" />
+	<arg name="robot_name" />
+	<arg name="robot_number" />
+	<arg name="crypto_key" />
+	<arg name="crypto_cipher" default="aes-128-cbc"/>
+	<arg name="peer_address" default="127.0.0.1" />
+	<arg name="peer_public_recv_port" default="4444" />
+	<arg name="peer_public_send_port" default="4445" />
+	<arg name="peer_cyan_recv_port" default="4441" />
+	<arg name="peer_cyan_send_port" default="4446" />
+	<arg name="peer_magenta_recv_port" default="4442" />
+	<arg name="peer_magenta_send_port" default="4447" />
+
+	<node name="rcll_refbox_peer_$(arg robot_number)" pkg="rcll_refbox_peer" type="rcll_refbox_peer" output="screen">
+		<param name="team_name" type="string" value="$(arg team_name)" />
+		<param name="team_color" type="string" value="$(arg team_color)" />
+		<param name="robot_name" type="string" value="$(arg robot_name)" />
+		<param name="robot_number" type="int" value="$(arg robot_number)" />
+		<param name="crypto_key" type="string" value="$(arg crypto_key)" />
+		<param name="crypto_cipher" type="string" value="$(arg crypto_cipher)" />
+		<param name="peer_address" type="string" value="$(arg peer_address)" />
+		<param name="peer_public_recv_port" type="int" value="$(arg peer_public_recv_port)" />
+		<param name="peer_public_send_port" type="int" value="$(arg peer_public_send_port)" />
+		<param name="peer_cyan_recv_port" type="int" value="$(arg peer_cyan_recv_port)" />
+		<param name="peer_cyan_send_port" type="int" value="$(arg peer_cyan_send_port)" />
+		<param name="peer_magenta_recv_port" type="int" value="$(arg peer_magenta_recv_port)" />
+		<param name="peer_magenta_send_port" type="int" value="$(arg peer_magenta_send_port)" />
+	</node>
+</launch>
