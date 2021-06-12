@@ -45,7 +45,6 @@
 
 #include <rcll_ros_msgs/SendBeaconSignal.h>
 #include <rcll_ros_msgs/SendMachineReport.h>
-#include <rcll_ros_msgs/SendMachineReportBTR.h>
 #include <rcll_ros_msgs/SendPrepareMachine.h>
 
 #include <tf2/LinearMath/Quaternion.h>
@@ -409,8 +408,8 @@ srv_cb_send_beacon(rcll_ros_msgs::SendBeaconSignal::Request  &req,
 
 	try {
 		ROS_DEBUG("Sending beacon %s:%s (seq %lu)", b.team_name().c_str(), b.peer_name().c_str(), b.seq());
-	       	peer_private_->send(b);
-	       	res.ok = true;
+		peer_private_->send(b);
+		res.ok = true;
 	} catch (std::runtime_error &e) {
 		res.ok = false;
 		res.error_msg = e.what();
@@ -420,8 +419,8 @@ srv_cb_send_beacon(rcll_ros_msgs::SendBeaconSignal::Request  &req,
 }
 
 bool
-srv_cb_send_machine_report(rcll_ros_msgs::SendMachineReportBTR::Request  &req,
-			   rcll_ros_msgs::SendMachineReportBTR::Response &res)
+srv_cb_send_machine_report(rcll_ros_msgs::SendMachineReport::Request  &req,
+                           rcll_ros_msgs::SendMachineReport::Response &res)
 {
 	if (! peer_private_) {
 		res.ok = false;
@@ -433,32 +432,23 @@ srv_cb_send_machine_report(rcll_ros_msgs::SendMachineReportBTR::Request  &req,
 	mr.set_team_color(ros_to_pb_team_color(cfg_team_color_));
 
 	std::string machines_sent;
-
+	
 	for (size_t i = 0; i < req.machines.size(); ++i) {
-		const rcll_ros_msgs::MachineReportEntryBTR &rmre = req.machines[i];
+		const rcll_ros_msgs::MachineReportEntry &rmre = req.machines[i];
 		llsf_msgs::MachineReportEntry *mre = mr.add_machines();
 		mre->set_name(rmre.name);
 		// mre->set_type(rmre.type);
 
-		if (! (Zone_IsValid(rmre.zone) || Zone_IsValid(-rmre.zone))) {
+		if (! Zone_IsValid(rmre.zone)) {
 			res.ok = false;
 			res.error_msg = std::string("Invalid zone value for machine") + rmre.name;
-			printf("%s\n", res.error_msg.c_str());
 			return true;
 		}
 
-		if(rmre.zone < 0) {
-			mre->set_zone((llsf_msgs::Zone)(-rmre.zone + 1000));
-		}else{
-			mre->set_zone((llsf_msgs::Zone)rmre.zone);
-		}
-		if (rmre.rotation != 1000) {
-			mre->set_rotation(((int)(rmre.rotation + 22.5) / 45) * 45);
-		}
+		mre->set_zone((llsf_msgs::Zone)rmre.zone);
 
 		if (! machines_sent.empty()) machines_sent += ", ";
 		machines_sent += rmre.name;
-
 	}
 	
 	try {

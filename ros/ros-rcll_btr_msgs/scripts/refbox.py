@@ -1,6 +1,9 @@
 #!/usr/bin/python
+TEAMNAME = "BabyTigers"
+
 import struct
 import time
+import math
 import sys
 import rospy
 import udpcomm
@@ -16,11 +19,11 @@ from rcll_btr_msgs.srv import SetOdometry, SetPosition, SetVelocity
 from rcll_ros_msgs.msg import BeaconSignal, ExplorationInfo, \
                               ExplorationSignal, ExplorationZone, GameState, \
                               LightSpec, MachineInfo, Machine, \
-                              MachineReportEntry, MachineReportInfo, \
-                              OrderInfo, Order, ProductColor, RingInfo, Ring, \
-                              Team, Time
+                              MachineReportEntry, MachineReportEntryBTR, \
+                              MachineReportInfo, OrderInfo, Order, \
+                              ProductColor, RingInfo, Ring, Team, Time
 from rcll_ros_msgs.srv import SendBeaconSignal, SendMachineReport, \
-                              SendPrepareMachine
+                              SendMachineReportBTR, SendPrepareMachine
 #
 # ROS for robotino
 # 
@@ -107,10 +110,12 @@ def beaconSignal(data):
 def explorationInfo(data):
     global refboxExplorationInfo
     refboxExplorationInfo = data
-    print("ExplorationInfo: ", data)
+    # print("ExplorationInfo: ", data)
 
 def gameState(data):
-    global refboxTime, refboxGameState
+    global refboxTime, refboxGameState, refboxGamePhase, \
+           refboxPointsMagenta, refboxTeamMagenta, \
+           refboxPointCyan, refboxTeamCyan
     refboxTime = data.game_time
     refboxGameState = data.state
     refboxGamePhase = data.phase
@@ -123,22 +128,22 @@ def gameState(data):
 def machineInfo(data):
     global refboxMachineInfo
     refboxMachineInfo = data
-    print("MachineInfo: ", data)
+    # print("MachineInfo: ", data)
 
 def machineReportInfo(data):
     global refboxMachineReportInfo
     refboxMachineReportInfo = data
-    print("MachineReportInfo: ", data)
+    # print("MachineReportInfo: ", data)
 
 def orderInfo(data):
     global refboxOrderInfo
     refboxOrderInfo = data
-    print("OrderInfo: ", data)
+    # print("OrderInfo: ", data)
 
 def ringInfo(data):
     global refboxRingInfo
     refboxRingInfo = data
-    print("RingInfo: ", data)
+    # print("RingInfo: ", data)
 
 #
 # send information to RefBox
@@ -150,34 +155,89 @@ def sendBeacon():
     poseStamped = PoseStamped()
     pose = Pose()
     
-    point = Point()
-    quaternion = Quaternion()
-    point.x = float(udp.view3Recv[2]) / 10
-    point.y = float(udp.view3Recv[3]) / 10
-    point.z = 0 # float(udp.view3Recv[4]) / 10
-    quaternion.x = 0
-    quaternion.y = 0
-    quaternion.z = 0
-    quaternion.w = float(udp.view3Recv[4]) / 10
-    pose.position = point
-    pose.orientation = quaternion
+    # pose.position = point
+    # set Pose
+    pose.position.x = float(udp.view3Recv[2]) / 10
+    pose.position.y = float(udp.view3Recv[3]) / 10
+    pose.position.z = 0
+    # set quaternion
+    theta = math.radians(float(udp.view3Recv[4]) / 10)
+    pose.orientation.x = math.cos(theta / 2.0)
+    pose.orientation.y = math.sin(theta / 2.0)
+    pose.orientation.z = math.sin(theta / 2.0)
+    pose.orientation.w = 0
     header1.seq = 1
     header1.stamp = rospy.Time.now()
-    header1.frame_id = "BabyTigers"
+    header1.frame_id = TEAMNAME
     header2.seq = 1
     header2.stamp = rospy.Time.now()
     header2.frame_id = "robot1"
     poseStamped.header = header2
     poseStamped.pose = pose
     beacon.header = header1
-    beacon.pose = poseStamped
+    beacon.pose  = poseStamped
 
     rospy.wait_for_service('/rcll/send_beacon')
     try:
         refboxSendBeacon = rospy.ServiceProxy('/rcll/send_beacon', SendBeaconSignal)
         resp1 = refboxSendBeacon(beacon.header, beacon.pose)
-        print("sendBeacon: ", beacon.header, beacon.pose)
-        print("resp: ", resp1)
+        # print("sendBeacon: ", beacon.header, beacon.pose)
+        # print("resp: ", resp1)
+        return resp1
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
+
+def sendMachineReport(report):
+    sendReport = SendMachineReport()
+    machineReport = MachineReportEntryBTR()
+    machineReport.name = report.name
+    machineReport.type = report.type
+    machineReport.zone = report.zone
+    machineReport.rotation = report.rotation
+    if (refboxTeamCyan == TEAMNAME):
+        sendReport.team_color = 1
+    else:
+        sendReport.team_color = 2
+    machineReportEntryBTR = [machineReport]
+    sendReport.machines = machineReportEntryBTR
+    print("machineReport: ", machineReport)
+
+    rospy.wait_for_service('/rcll/send_machine_report')
+    try:
+        refboxMachineReport = rospy.ServiceProxy('/rcll/send_machine_report', SendMachineReportBTR)
+        resp1 = refboxMachineReport(sendReport.team_color, sendReport.machines)
+        # print("sendBeacon: ", beacon.header, beacon.pose)
+        # print("resp: ", resp1)
+        return resp1
+    except rospy.ServiceException, e:
+        print "Service call failed: %s"%e
+
+def sendPrepareMachine(data):
+    prepare = SendPrepareMachine()
+    # prepare.machine = data.machine
+    prepare.machine = data.machine
+    prepare.bs_side = 0
+    prepare.bs_base_color = 0
+    prepare.ds_order_id = 0
+    prepare.cs_operation = 0
+    prepare.rs_ring_color =0
+    
+    machineType = prepare.machine[2:4]
+    print(machineType)
+    if (machineType == "BS"):
+        prepare.bs_side = data.bs_side
+        prepare.bs_base_color =data.bs_base_color
+    if (machineType == "DS"):
+        prepare.ds_order_id = data.ds_order_id
+    if (machineType == "CS"):
+        prepare.cs_operation = data.cs_operation
+    if (machineType == "RS"):
+        prepare.rs_ring_color = data.rs_ring_color
+    prepare.wait = data.wait
+    rospy.wait_for_service('/rcll/send_prepare_machine')
+    try:
+        refboxPrepareMachine = rospy.ServiceProxy('/rcll/send_prepare_machine', SendPrepareMachine)
+        resp1 = refboxPrepareMachine(prepare.machine, prepare.wait, prepare.bs_side, prepare.bs_base_color, prepare.ds_order_id, prepare.rs_ring_color, prepare.cs_operation)
         return resp1
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
@@ -216,7 +276,7 @@ if __name__ == '__main__':
   refboxLightSpec = LightSpec()
   refboxMachineInfo = MachineInfo()
   refboxMachine = Machine()
-  refboxMachineReportEntry = MachineReportEntry()
+  refboxMachineReportEntry = MachineReportEntryBTR()
   refboxMachineReportInfo = MachineReportInfo()
   refboxOrderInfo = OrderInfo()
   refboxOrder = Order()
@@ -238,9 +298,8 @@ if __name__ == '__main__':
   rate = rospy.Rate(10)
 
   robViewMode = 0
-  oldMode = 0
-  checkFlag = 0
-
+  machineReport = MachineReportEntryBTR()
+  prepareMachine = SendPrepareMachine() 
   udp.view3Send[1] = robViewMode
   udp.sender()
 
@@ -248,13 +307,52 @@ if __name__ == '__main__':
   while not rospy.is_shutdown():
     udp.receiver()
     sendBeacon()
+
+    # send machine report for Exploration Phase
+    if (refboxGamePhase == 20):
+        if (refboxTime.sec == 10):
+            machineReport.name = "C-CS1"
+            machineReport.type = "CS"
+            machineReport.zone = -53 
+            machineReport.rotation = 210
+            sendMachineReport(machineReport)
+
+    # send machine prepare command
+    if (refboxGamePhase == 30):
+        # make C0
+        # which requires get base with cap from shelf at C-CS1, 
+        #                Retrieve cap at C-CS1,
+        #                bring base without cap to C-RS1,
+        #                get base at C-BS,
+        #                bring base to C-CS1,
+        #                Mount cap at C-CS1,
+        #                bring it to C-DS corresponded by order it.
+
+        if (refboxTime.sec ==   5):
+            prepareMachine.machine = "C-CS1"
+            prepareMachine.cs_operation = 1 # CS_OP_RETRIEVE_CAP
+            prepareMachine.wait = True
+            sendPrepareMachine(prepareMachine)
+        if (refboxTime.sec ==  30):
+            prepareMachine.machine = "C-BS"
+            prepareMachine.bs_side = 1  # INPUT or OUTPUT side
+            prepareMachine.bs_base_color = 1 # BASE COLOR
+            prepareMachine.wait = True
+            sendPrepareMachine(prepareMachine)
+        if (refboxTime.sec ==  60):
+            prepareMachine.machine = "C-CS1"
+            prepareMachine.cs_operation = 0 # CS_OP_MOUNT_CAP
+            prepareMachine.wait = True
+            sendPrepareMachine(prepareMachine)
+        if (refboxTime.sec ==  90):
+            prepareMachine.machine = "C-DS"
+            prepareMachine.ds_order_id = 1 # ORDER ID
+            prepareMachine.wait = True
+            sendPrepareMachine(prepareMachine)
+
+
     udp.sender()
-    # time.sleep(0.1)
     rate.sleep()
-    # if (checkFlag == 1):
-    #   robViewMode = 0
-    #   # velocity.data = (0, 0, 0)
-    #   velocityData.pose = [0, 0, 0]
 
   udp.closer()
 
