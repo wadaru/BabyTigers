@@ -29,10 +29,18 @@ from rcll_ros_msgs.srv import SendBeaconSignal, SendMachineReport, \
 # 
 
 def getResponse(value):
-    while float(udp.view3Recv[1]) == value:
-        udp.receiver()
-        udp.sender()
-        rate.sleep()
+    if (value == 0):
+        while float(udp.view3Recv[1]) == value:
+            udp.receiver()
+            udp.sender()
+            rate.sleep()
+            print("wait for receiving any value")
+    else:
+        while float(udp.view3Recv[1]) != 0:
+            udp.receiver()
+            udp.sender()
+            rate.sleep()
+            print("wait for receiving 0")
     return
 
 def sendRobView():

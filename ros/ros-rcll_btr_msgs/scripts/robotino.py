@@ -16,10 +16,17 @@ from rcll_btr_msgs.srv import SetOdometry, SetPosition, SetVelocity
 # 
 
 def getResponse(value):
-    while float(udp.view3Recv[1]) == value:
-        udp.receiver()
-        udp.sender()
-        rate.sleep()
+    if (value == 0):
+        while float(udp.view3Recv[1]) == value:
+            udp.receiver()
+            udp.sender()
+            rate.sleep()
+    else:
+        while float(udp.view3Recv[1]) != 0:
+            udp.receiver()
+            udp.sender()
+            rate.sleep()
+    print(udp.view3Recv[1])
     return
 
 def sendRobView():

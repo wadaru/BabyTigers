@@ -5,9 +5,7 @@ import sys
 import rospy
 from geometry_msgs.msg import Pose
 from socket import socket, AF_INET, SOCK_DGRAM
-from std_msgs.msg import Float32
-from std_msgs.msg import Float32MultiArray
-from std_msgs.msg import Bool
+from std_msgs.msg import Int8, Float32, Float32MultiArray, Bool
 
 class Udpcomm():
   def __init__(self, sADDRESS = "127.0.1.1", sPORT = 9180, rADDRESS = "127.0.1.1", rPORT = 9182):

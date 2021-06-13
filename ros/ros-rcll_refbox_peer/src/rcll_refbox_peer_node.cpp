@@ -33,6 +33,7 @@
 #include <llsf_msgs/OrderInfo.pb.h>
 #include <llsf_msgs/RingInfo.pb.h>
 #include <llsf_msgs/MachineInstructions.pb.h>
+#include <llsf_msgs/NavigationChallenge.pb.h>
 
 #include <rcll_ros_msgs/BeaconSignal.h>
 #include <rcll_ros_msgs/GameState.h>
@@ -42,9 +43,12 @@
 #include <rcll_ros_msgs/MachineReportInfo.h>
 #include <rcll_ros_msgs/OrderInfo.h>
 #include <rcll_ros_msgs/RingInfo.h>
+#include <rcll_ros_msgs/NavigationRoutes.h>
+#include <rcll_ros_msgs/Route.h>
 
 #include <rcll_ros_msgs/SendBeaconSignal.h>
 #include <rcll_ros_msgs/SendMachineReport.h>
+#include <rcll_ros_msgs/SendMachineReportBTR.h>
 #include <rcll_ros_msgs/SendPrepareMachine.h>
 
 #include <tf2/LinearMath/Quaternion.h>
@@ -92,6 +96,7 @@ ros::Publisher pub_exploration_info_;
 ros::Publisher pub_machine_report_info_;
 ros::Publisher pub_order_info_;
 ros::Publisher pub_ring_info_;
+ros::Publisher pub_navigation_routes_info_;
 
 ros::ServiceServer srv_send_beacon_;
 ros::ServiceServer srv_send_machine_report_;
@@ -322,6 +327,36 @@ handle_message(boost::asio::ip::udp::endpoint &sender,
 		}
 	}
 
+	{
+		std::shared_ptr<NavigationRoutes> nr;
+		if ((nr = std::dynamic_pointer_cast<NavigationRoutes>(msg))) {
+			rcll_ros_msgs::NavigationRoutes rnr;
+			printf("NavigationRoutes received\n");
+			printf("routes_size: %d\n", nr->routes_size());
+			for (int i = 0; i < nr->routes_size(); ++i) {
+				const llsf_msgs::Route &r = nr->routes(i);
+				llsf_msgs::Zone rz;
+				rcll_ros_msgs::Route rr;
+				rr.id        = r.id();
+				printf("route size: %d\n", r.route_size());
+				printf("reached_size: %d\n", r.reached_size());
+				printf("remaining_size: %d\n", r.remaining_size());
+				for (int j = 0; j < r.route_size();    ++j) {
+					rr.zone = r.route(j);
+					rnr.route.push_back(rr);
+				}
+				for (int j = 0; j < r.reached_size();  ++j) {
+					rr.zone = r.reached(j);
+					rnr.route.push_back(rr);
+				}
+				for (int j = 0; j < r.remaining_size(); ++j) {
+				       	rr.zone = r.remaining(j);
+					rnr.route.push_back(rr);
+				}
+			}
+			pub_navigation_routes_info_.publish(rnr);
+		}
+	}
 }
 
 
@@ -408,8 +443,8 @@ srv_cb_send_beacon(rcll_ros_msgs::SendBeaconSignal::Request  &req,
 
 	try {
 		ROS_DEBUG("Sending beacon %s:%s (seq %lu)", b.team_name().c_str(), b.peer_name().c_str(), b.seq());
-		peer_private_->send(b);
-		res.ok = true;
+	       	peer_private_->send(b);
+	       	res.ok = true;
 	} catch (std::runtime_error &e) {
 		res.ok = false;
 		res.error_msg = e.what();
@@ -419,8 +454,8 @@ srv_cb_send_beacon(rcll_ros_msgs::SendBeaconSignal::Request  &req,
 }
 
 bool
-srv_cb_send_machine_report(rcll_ros_msgs::SendMachineReport::Request  &req,
-                           rcll_ros_msgs::SendMachineReport::Response &res)
+srv_cb_send_machine_report(rcll_ros_msgs::SendMachineReportBTR::Request  &req,
+			   rcll_ros_msgs::SendMachineReportBTR::Response &res)
 {
 	if (! peer_private_) {
 		res.ok = false;
@@ -432,23 +467,32 @@ srv_cb_send_machine_report(rcll_ros_msgs::SendMachineReport::Request  &req,
 	mr.set_team_color(ros_to_pb_team_color(cfg_team_color_));
 
 	std::string machines_sent;
-	
+
 	for (size_t i = 0; i < req.machines.size(); ++i) {
-		const rcll_ros_msgs::MachineReportEntry &rmre = req.machines[i];
+		const rcll_ros_msgs::MachineReportEntryBTR &rmre = req.machines[i];
 		llsf_msgs::MachineReportEntry *mre = mr.add_machines();
 		mre->set_name(rmre.name);
 		// mre->set_type(rmre.type);
 
-		if (! Zone_IsValid(rmre.zone)) {
+		if (! (Zone_IsValid(rmre.zone) || Zone_IsValid(-rmre.zone))) {
 			res.ok = false;
 			res.error_msg = std::string("Invalid zone value for machine") + rmre.name;
+			printf("%s\n", res.error_msg.c_str());
 			return true;
 		}
 
-		mre->set_zone((llsf_msgs::Zone)rmre.zone);
+		if(rmre.zone < 0) {
+			mre->set_zone((llsf_msgs::Zone)(-rmre.zone + 1000));
+		}else{
+			mre->set_zone((llsf_msgs::Zone)rmre.zone);
+		}
+		if (rmre.rotation != 1000) {
+			mre->set_rotation(((int)(rmre.rotation + 22.5) / 45) * 45);
+		}
 
 		if (! machines_sent.empty()) machines_sent += ", ";
 		machines_sent += rmre.name;
+
 	}
 	
 	try {
@@ -508,6 +552,7 @@ srv_cb_send_prepare_machine(rcll_ros_msgs::SendPrepareMachine::Request  &req,
 	pm.set_team_color(ros_to_pb_team_color(cfg_team_color_));
 	pm.set_machine(req.machine);
 
+	printf("machine_type: %s\n", machine_type.c_str());
 	if (machine_type == "BS") {
 		if (! llsf_msgs::MachineSide_IsValid(req.bs_side)) {
 			res.ok = false;
@@ -526,6 +571,7 @@ srv_cb_send_prepare_machine(rcll_ros_msgs::SendPrepareMachine::Request  &req,
 		llsf_msgs::PrepareInstructionDS *dsi = pm.mutable_instruction_ds();
 		dsi->set_order_id(req.ds_order_id);
 	} else if (machine_type == "CS") {
+		printf("operation: %d\n", req.cs_operation);
 		if (! llsf_msgs::CSOp_IsValid(req.cs_operation)) {
 			res.ok = false;
 			res.error_msg = "Invalid CS operation";
@@ -701,6 +747,7 @@ main(int argc, char **argv)
 	pub_machine_report_info_ = n.advertise<rcll_ros_msgs::MachineReportInfo>("rcll/machine_report_info", 10);
 	pub_order_info_ = n.advertise<rcll_ros_msgs::OrderInfo>("rcll/order_info", 10);
 	pub_ring_info_ = n.advertise<rcll_ros_msgs::RingInfo>("rcll/ring_info", 10);
+	pub_navigation_routes_info_ = n.advertise<rcll_ros_msgs::NavigationRoutes>("rcll/routes_info", 10);
 
 	// Setup basic communication
   if (cfg_peer_public_local_) {
@@ -726,6 +773,7 @@ main(int argc, char **argv)
   message_register.add_message_type<llsf_msgs::RingInfo>();
   message_register.add_message_type<llsf_msgs::RobotInfo>();
   message_register.add_message_type<llsf_msgs::PrepareMachine>();
+  message_register.add_message_type<llsf_msgs::NavigationRoutes>();
 
   peer_public_->signal_received().connect(handle_message);
   peer_public_->signal_recv_error().connect(handle_recv_error);
