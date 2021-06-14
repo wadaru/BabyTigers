@@ -203,7 +203,7 @@ def sendMachineReport(report):
         resp1 = refboxMachineReport(sendReport.team_color, sendReport.machines)
         # print("sendBeacon: ", beacon.header, beacon.pose)
         # print("resp: ", resp1)
-        waitReponse()
+        waitResponse()
         return resp1
     except rospy.ServiceException, e:
         print "Service call failed: %s"%e
